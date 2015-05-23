@@ -75,14 +75,27 @@ GAME1 equ 35
 GAME2 equ 36
 GAME3 equ 37
 GAME4 equ 38
+GAME5 equ 39
+GAME6 equ 40
+
+COUNTGO equ 50
+COUNT1 equ 51
+COUNT2 equ 52
+COUNT3 equ 53
+COUNT4 equ 54
+COUNT5 equ 55
 
 REG1 equ 1
 DARK1 equ 3
+LIGHT1 equ 5
 REG2 equ 2
 DARK2 equ 4
+LIGHT2 equ 6
 
 BOOSTS1 equ 3
 BOOSTS2 equ 3
+
+WINWIDTH equ 1000
 
 .data
 
@@ -100,7 +113,7 @@ Player STRUCT
 ;<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 Player ENDS
 
-WinWidth DWORD 1000
+WinWidth DWORD WINWIDTH
 WinHeight DWORD ?
 RealWidth DWORD ?
 RealHeight DWORD ?
@@ -109,13 +122,14 @@ Color1 DWORD 000000ff0000h
 Color2 DWORD 0000000000ffh
 Darker1 DWORD ?
 Darker2 DWORD ?
+Lighter1 DWORD ?
+Lighter2 DWORD ?
 P1 Player <1, Color1, ?, ?, ?, FACING1, VERTICAL1, HORIZONTAL1, BOOSTS1>
 P2 Player <2, Color2, ?, ?, ?, FACING2, VERTICAL2, HORIZONTAL2, BOOSTS2>
 ClassName DB "TheClass", 0
 windowTitle DB "TRON: REASSEMBLED", 0
 backupecx	DWORD	?
 grid DB 100*75 dup(0)
-sequence HBITMAP 42 dup (?)
 SettingsBMH HBITMAP ?
 MainMenuBMH HBITMAP ?
 PausingBMH HBITMAP ?
@@ -168,6 +182,20 @@ HighlightMaskBMH HBITMAP ?
 AudioGifBMH HBITMAP ?
 VolumeBarBMH HBITMAP ?
 VolumeBarMaskBMH HBITMAP ?
+
+Count1BMH HBITMAP ?
+Count1MaskBMH HBITMAP ?
+Count2BMH HBITMAP ?
+Count2MaskBMH HBITMAP ?
+Count3BMH HBITMAP ?
+Count3MaskBMH HBITMAP ?
+Count4BMH HBITMAP ?
+Count4MaskBMH HBITMAP ?
+Count5BMH HBITMAP ?
+Count5MaskBMH HBITMAP ?
+CountGoBMH HBITMAP ?
+CountGoMaskBMH HBITMAP ?
+
 SelectorBMH HBITMAP ?
 SelectorMaskBMH HBITMAP ?
 CurrentBMH HBITMAP ?
@@ -183,21 +211,31 @@ NowKeyTime1 DWORD ?
 NowKeyTime2 DWORD ?
 BoostTime1 DWORD ?
 BoostTime2 DWORD ?
+SlowTime1 DWORD ?
+SlowTime2 DWORD ?
+LastMoveTime1 DWORD ?
+LastMoveTime2 DWORD ?
 LastFrameTime DWORD ?
 NowFrameTime DWORD ?
 Frame DWORD 1
 Selected DWORD 1
 Image DWORD 1
 SelectorX DWORD ?
+
 Game1BMH HBITMAP ?
 Game2BMH HBITMAP ?
 Game3BMH HBITMAP ?
 Game4BMH HBITMAP ?
+Game5BMH HBITMAP ?
+Game6BMH HBITMAP ?
+
 CoolTime DWORD ?
 MouseX DWORD ?
 MouseY DWORD ?
 W1Quarter DWORD ?
 W2Quarter DWORD ?
+H1Quarter DWORD ?
+H2Quarter DWORD ?
 H1Tenth DWORD ?
 H2Tenth DWORD ?
 H3Tenth DWORD ?
@@ -206,13 +244,31 @@ H5Tenth DWORD ?
 H6Tenth DWORD ?
 H7Tenth DWORD ?
 H8Tenth DWORD ?
+H9Tenth DWORD ?
 X1 DWORD ?
 Y1 DWORD ?
 X2 DWORD ?
 Y2 DWORD ?
 MyD DWORD ?
+
+Slow DWORD ?
 Speed DWORD ?
 Boost DWORD ?
+CountDown DWORD ?
+CountTime DWORD ?
+
+playTheSonOfFlynn BYTE "play TheSonOfFlynn.mp3",0
+pauseTheSonOfFlynn BYTE "pause TheSonOfFlynn.mp3",0
+resumeTheSonOfFlynn BYTE "resume TheSonOfFlynn.mp3",0
+stopTheSonOfFlynn BYTE "stop TheSonOfFlynn.mp3",0
+playTheGameHasChanged BYTE "play TheGameHasChanged.mp3",0
+pauseTheGameHasChanged BYTE "pause TheGameHasChanged.mp3",0
+resumeTheGameHasChanged BYTE "resume TheGameHasChanged.mp3",0
+stopTheGameHasChanged BYTE "stop TheGameHasChanged.mp3",0
+playDerezzed BYTE "play Derezzed.mp3",0
+pauseDerezzed BYTE "pause Derezzed.mp3",0
+resumeDerezzed BYTE "resume Derezzed.mp3",0
+stopDerezzed BYTE "stop Derezzed.mp3",0
 
 .code
 
@@ -252,6 +308,11 @@ Scale PROC, w:DWORD
 	mov ebx, 2
 	mul ebx
 	mov Boost, eax
+	xor edx, edx
+	div ebx
+	xor edx, edx
+	div ebx
+	mov Slow, eax
 	mov eax, w
 	mov ebx, 2
 	mov WinWidth, eax
@@ -275,6 +336,14 @@ Scale PROC, w:DWORD
 	mov ecx, eax
 	add ecx, 40
 	mov RealHeight, ecx
+	mov ebx, 2
+	xor edx, edx
+	div ebx
+	mov H2Quarter, eax
+	xor edx, edx
+	div ebx
+	mov H1Quarter, eax
+	mov eax, WinHeight
 	mov ebx, 10
 	xor edx, edx
 	div ebx
@@ -312,6 +381,11 @@ Scale PROC, w:DWORD
 	mov ebx, 8
 	mul ebx
 	mov H8Tenth, eax
+	xor edx, edx
+	div ebx
+	mov ebx, 9
+	mul ebx
+	mov H9Tenth, eax
 
 	mov eax, WinWidth
 	mov ebx, MyD
@@ -341,7 +415,7 @@ Scale ENDP
 ChangeImage PROC
 ;--------------------------------------------------------------------------------
 	inc Image
-	cmp Image, 4
+	cmp Image, 6
 	jle changeimage
 loopimage:
 	mov eax, 1
@@ -355,6 +429,10 @@ changeimage:
 	je image3
 	cmp Image, 4
 	je image4
+	cmp Image, 5
+	je image5
+	cmp Image, 6
+	je image6
 	ret
 image1:
 	mov eax, Game1BMH
@@ -370,6 +448,14 @@ image3:
 	ret
 image4:
 	mov eax, Game4BMH
+	mov CurrentBMH, eax
+	ret
+image5:
+	mov eax, Game5BMH
+	mov CurrentBMH, eax
+	ret
+image6:
+	mov eax, Game6BMH
 	mov CurrentBMH, eax
 	ret
 ;================================================================================
@@ -401,7 +487,7 @@ local HOld:HBITMAP
 	invoke SelectObject, hdcMem, img
 	mov HOld, eax
 	invoke SetStretchBltMode, hdc, COLORONCOLOR
-	invoke StretchBlt , hdc, destx, desty, destw, desth, hdcMem, srcx, srcy, srcw, srch, SRCCOPY
+	invoke StretchBlt, hdc, destx, desty, destw, desth, hdcMem, srcx, srcy, srcw, srch, SRCCOPY
 	invoke SelectObject, hdcMem, HOld
 	invoke DeleteDC, hdcMem 
 	invoke DeleteObject, HOld
@@ -472,10 +558,54 @@ DrawBG PROC, mystatus:DWORD, myrect:RECT, hdc:HDC, hWnd:HWND
 
 gamedraw:
 	invoke DrawImage, hdc, CurrentBMH, 0, 0, 0, 0, WinWidth, WinHeight, 1000, 750
+	cmp CountDown, 0				;-1
+	je nocount
+	;cmp CountDown, 0
+	;je countgo
+	cmp CountDown, 1
+	je count1
+	cmp CountDown, 2
+	je count2
+	cmp CountDown, 3
+	je count3
+	cmp CountDown, 4
+	je count4
+	cmp CountDown, 5
+	je count5
+	ret
+
+countgo:
+	invoke DrawImage_WithMask, hdc, CountGoBMH, CountGoMaskBMH, W1Quarter, H1Quarter, 0, 0, W2Quarter, H2Quarter, 679, 346
+	ret
+
+count1:
+	invoke DrawImage_WithMask, hdc, Count1BMH, Count1MaskBMH, W1Quarter, H1Quarter, 0, 0, W2Quarter, H2Quarter, 346, 346
+	ret
+
+count2:
+	invoke DrawImage_WithMask, hdc, Count2BMH, Count2MaskBMH, W1Quarter, H1Quarter, 0, 0, W2Quarter, H2Quarter, 346, 346
+	ret
+
+count3:
+	invoke DrawImage_WithMask, hdc, Count3BMH, Count3MaskBMH, W1Quarter, H1Quarter, 0, 0, W2Quarter, H2Quarter, 346, 346
+	ret
+
+count4:
+	invoke DrawImage_WithMask, hdc, Count4BMH, Count4MaskBMH, W1Quarter, H1Quarter, 0, 0, W2Quarter, H2Quarter, 346, 346
+	ret
+
+count5:
+	invoke DrawImage_WithMask, hdc, Count5BMH, Count5MaskBMH, W1Quarter, H1Quarter, 0, 0, W2Quarter, H2Quarter, 346, 346
+	ret
+
+nocount:
 	ret
 
 mainmenudraw:	;new game, settings, help, credits, exit
-	invoke DrawImage, hdc, MainMenuBMH, 0, 0, 0, 0, WinWidth, WinHeight, 1000, 750
+	mov eax, Frame
+	dec eax
+	imul eax, 1000
+	invoke DrawImage, hdc, MainMenuBMH, 0, 0, eax, 0, WinWidth, WinHeight, 1000, 750
 	cmp Selected, 1
 	je mainmenunewgameselect
 	cmp Selected, 2
@@ -510,6 +640,24 @@ nextmainmenu:
 	invoke DrawImage_WithMask, hdc, HelpButtonBMH, HelpButtonMaskBMH,  W1Quarter, H3Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
 	invoke DrawImage_WithMask, hdc, CreditsButtonBMH, CreditsButtonMaskBMH,  W1Quarter, H4Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
 	invoke DrawImage_WithMask, hdc, ExitButtonBMH, ExitButtonMaskBMH,  W1Quarter, H5Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
+	invoke GetTickCount
+	mov NowFrameTime, eax
+	sub eax, LastFrameTime
+	cmp eax, 60
+	jge mainmenugifdraw
+	ret
+mainmenugifdraw:
+	mov eax, NowFrameTime
+	mov LastFrameTime, eax
+	mov eax, Frame
+	inc eax
+	mov Frame, eax
+	cmp Frame, 20
+	jg mainmenugifloop
+	ret
+mainmenugifloop:
+	mov eax, 1
+	mov Frame, eax
 	ret
 
 settingsdraw:		;audio, graphics, back
@@ -554,7 +702,7 @@ settingsgifdraw:
 	mov eax, Frame
 	inc eax
 	mov Frame, eax
-	cmp Frame, 60
+	cmp Frame, 44
 	jg settingsgifloop
 	ret
 settingsgifloop:
@@ -563,8 +711,10 @@ settingsgifloop:
 	ret
 
 pausingdraw:		;resume, new game, settings, help, mainmenu
-	invoke DrawImage, hdc, PausingBMH, 0, 0, 0, 0, WinWidth, WinHeight, 1000, 750
-
+	mov eax, Frame
+	dec eax
+	imul eax, 1000
+	invoke DrawImage, hdc, PausingBMH, 0, 0, eax, 0, WinWidth, WinHeight, 1000, 750
 	cmp Selected, 1
 	je pausingresumeselected
 	cmp Selected, 2
@@ -603,6 +753,24 @@ nextpausing:
 	invoke DrawImage_WithMask, hdc, SettingsButtonBMH, SettingsButtonMaskBMH,  W1Quarter, H3Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
 	invoke DrawImage_WithMask, hdc, HelpButtonBMH, HelpButtonMaskBMH,  W1Quarter, H4Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
 	invoke DrawImage_WithMask, hdc, MainMenuButtonBMH, MainMenuButtonMaskBMH,  W1Quarter, H5Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
+	invoke GetTickCount
+	mov NowFrameTime, eax
+	sub eax, LastFrameTime
+	cmp eax, 60
+	jge pausinggifdraw
+	ret
+pausinggifdraw:
+	mov eax, NowFrameTime
+	mov LastFrameTime, eax
+	mov eax, Frame
+	inc eax
+	mov Frame, eax
+	cmp Frame, 24
+	jg pausinggifloop
+	ret
+pausinggifloop:
+	mov eax, 1
+	mov Frame, eax
 	ret
 
 endingdraw:			;new game, credits, mainmenu, exit
@@ -852,6 +1020,10 @@ GetColor PROC, playerid:BYTE
 	je player1boost
 	cmp playerid, 4
 	je player2boost
+	cmp playerid, 5
+	je player1slow
+	cmp playerid, 6
+	je player2slow
 noplayercolor:
 	mov eax, NULL
 	ret
@@ -866,6 +1038,12 @@ player1boost:
 	ret
 player2boost:
 	mov eax, Darker2
+	ret
+player1slow:
+	mov eax, Lighter1
+	ret
+player2slow:
+	mov eax, Lighter2
 	ret
 ;============================================================================
 GetColor ENDP
@@ -913,6 +1091,11 @@ clear:
 	mov P1.boosts, al
 	mov al, BOOSTS2
 	mov P2.boosts, al
+	mov eax, 3
+	mov CountDown, eax
+	invoke mciSendString, offset playDerezzed, NULL, NULL, NULL
+	invoke GetTickCount
+	mov CountTime, eax
 	ret
 ;============================================================================
 Restart ENDP
@@ -1028,8 +1211,15 @@ player1set:
 	mov eax, Speed
 	cmp P1.speed, eax
 	je noboostset1
+	mov eax, Slow
+	cmp P1.speed, eax
+	je slowset1
 boostset1:
 	mov al, DARK1
+	mov realdata, al
+	jmp nextset
+slowset1:
+	mov al, LIGHT1
 	mov realdata, al
 	jmp nextset
 noboostset1:
@@ -1040,8 +1230,15 @@ player2set:
 	mov eax, Speed
 	cmp P2.speed, eax
 	je noboostset2
+	mov eax, Slow
+	cmp P2.speed, eax
+	je slowset2
 boostset2:
 	mov al, DARK2
+	mov realdata, al
+	jmp nextset
+slowset2:
+	mov al, LIGHT2
 	mov realdata, al
 	jmp nextset
 noboostset2:
@@ -1226,10 +1423,10 @@ image:
 
 resize:
 	mov eax, WinWidth
-	sub eax, 200
-	cmp eax, 600
+	sub eax, WINWIDTH/5
+	cmp eax, 3*WINWIDTH/5
 	jge notloopsize
-	mov eax, 1000
+	mov eax, WINWIDTH
 notloopsize:
 	mov WinWidth, eax
 	invoke Scale, eax
@@ -1961,10 +2158,12 @@ gamemovement:
 	je pausing
 	cmp wParam, VK_R
 	je newgame
-	cmp wParam, VK_RSHIFT
-	je gameboost1
-	cmp wParam, VK_LSHIFT
-	je gameboost2
+	cmp CountDown, 0			;-1
+	jne theend
+	;cmp wParam, VK_RSHIFT
+	;je gameboost1
+	;cmp wParam, VK_LSHIFT
+	;je gameboost2
 	invoke WhichPlayer, wParam
 	cmp eax, 1
 	je gamemovement1
@@ -2266,6 +2465,39 @@ audiopaint:
 	ret
 
 gamepaint:
+	cmp CountDown, 0			;-1
+	je nextgamepaint
+
+	invoke BeginPaint, hWnd, addr paint
+	mov hdc, eax
+	invoke CreateCompatibleDC, hdc
+	mov mem_hdc, eax
+	invoke CreateCompatibleBitmap, hdc, WinWidth, WinHeight
+	mov mem_hbm, eax
+	invoke SelectObject, mem_hdc, mem_hbm
+	mov OldHandle, eax
+	invoke DrawBG, status, rect, mem_hdc, hWnd
+	invoke SetGrid, P1.x, P1.y, 1
+	invoke SetGrid, P2.x, P2.y, 2
+	invoke DrawGrid, mem_hdc
+	invoke BitBlt, hdc, 0, 0, WinWidth, WinHeight, mem_hdc, 0, 0, SRCCOPY
+	invoke SelectObject, mem_hdc, OldHandle
+	invoke DeleteObject, mem_hbm
+	invoke DeleteDC, mem_hdc
+	invoke EndPaint, hWnd, addr paint
+
+	invoke GetTickCount
+	sub eax, CountTime
+	cmp eax, 1000
+	jge Count
+	ret
+Count:
+	dec CountDown
+	invoke GetTickCount
+	mov CountTime, eax
+	ret
+
+nextgamepaint:
 	mov eax, Speed
 	cmp P1.speed, eax
 	je notboosting1
@@ -2550,7 +2782,6 @@ mov hWnd, eax ;Save the handle
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, GAME1
 mov Game1BMH, eax
-
 mov eax, Game1BMH
 mov CurrentBMH, eax			;;;;;
 
@@ -2565,6 +2796,14 @@ mov Game3BMH, eax
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, GAME4
 mov Game4BMH, eax
+
+invoke GetModuleHandle, NULL
+invoke LoadBitmap, eax, GAME5
+mov Game5BMH, eax
+
+invoke GetModuleHandle, NULL
+invoke LoadBitmap, eax, GAME6
+mov Game6BMH, eax
 
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, MAINMENU
@@ -2724,7 +2963,7 @@ mov VolumeBarMaskBMH, eax
 
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, SELECTOR
-mov SelectorMaskBMH, eax
+mov SelectorBMH, eax
 invoke Get_Handle_To_Mask_Bitmap, SelectorBMH, 0ffffffh		;white
 mov SelectorMaskBMH, eax
 
@@ -2733,6 +2972,42 @@ invoke LoadBitmap, eax, MUTEBUTTON
 mov MuteButtonBMH, eax
 invoke Get_Handle_To_Mask_Bitmap, MuteButtonBMH, 0ffffffh		;white
 mov MuteButtonMaskBMH, eax
+
+invoke GetModuleHandle, NULL
+invoke LoadBitmap, eax, COUNTGO
+mov CountGoBMH, eax
+invoke Get_Handle_To_Mask_Bitmap, CountGoBMH, 0ffffffh		;white
+mov CountGoMaskBMH, eax
+
+invoke GetModuleHandle, NULL
+invoke LoadBitmap, eax, COUNT1
+mov Count1BMH, eax
+invoke Get_Handle_To_Mask_Bitmap, Count1BMH, 0ffffffh		;white
+mov Count1MaskBMH, eax
+
+invoke GetModuleHandle, NULL
+invoke LoadBitmap, eax, COUNT2
+mov Count2BMH, eax
+invoke Get_Handle_To_Mask_Bitmap, Count2BMH, 0ffffffh		;white
+mov Count2MaskBMH, eax
+
+invoke GetModuleHandle, NULL
+invoke LoadBitmap, eax, COUNT3
+mov Count3BMH, eax
+invoke Get_Handle_To_Mask_Bitmap, Count3BMH, 0ffffffh		;white
+mov Count3MaskBMH, eax
+
+invoke GetModuleHandle, NULL
+invoke LoadBitmap, eax, COUNT4
+mov Count4BMH, eax
+invoke Get_Handle_To_Mask_Bitmap, Count4BMH, 0ffffffh		;white
+mov Count4MaskBMH, eax
+
+invoke GetModuleHandle, NULL
+invoke LoadBitmap, eax, COUNT5
+mov Count5BMH, eax
+invoke Get_Handle_To_Mask_Bitmap, Count5BMH, 0ffffffh		;white
+mov Count5MaskBMH, eax
 
 mov eax, Color1
 and eax, 07E7E7Eh
@@ -2749,6 +3024,16 @@ mov ebx, Color2
 and ebx, 0808080h
 or eax, ebx
 mov Darker2, eax
+
+mov eax, Color1
+and eax, 07f7f7fh
+shl eax, 1
+mov Lighter1, eax
+
+mov eax, Color2
+and eax, 07f7f7fh
+shl eax, 1
+mov Lighter2, eax
 
 invoke ShowWindow, hWnd, SW_SHOW ;Show it 
 invoke SetTimer, hWnd, MAIN_TIMER_ID, 20, NULL ;Set the repaint timer

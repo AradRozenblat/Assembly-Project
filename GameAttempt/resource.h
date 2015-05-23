@@ -36,3 +36,11 @@
 #define IDB_GAME2 36
 #define IDB_GAME3 37
 #define IDB_GAME4 38
+#define IDB_GAME5 39
+#define IDB_GAME6 40
+#define IDB_COUNTGO 50
+#define IDB_COUNT1 51
+#define IDB_COUNT2 52
+#define IDB_COUNT3 53
+#define IDB_COUNT4 54
+#define IDB_COUNT5 55
