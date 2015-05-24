@@ -31,6 +31,7 @@ UP	equ 4
 STOP equ 5
 
 FACING1 equ 3
+
 FACING2 equ 1
 VERTICAL1 equ 0
 HORIZONTAL1 equ 1
@@ -61,7 +62,7 @@ RESUMEBUTTON equ 21
 HELPBUTTON equ 22
 CREDITSBUTTON equ 23
 EXITBUTTON equ 24
-HIGHLIGHT equ 25
+BIGHIGHLIGHT equ 25
 VOLUMEBAR equ 26
 SELECTOR equ 27
 MUTEBUTTON equ 28
@@ -84,6 +85,14 @@ COUNT2 equ 52
 COUNT3 equ 53
 COUNT4 equ 54
 COUNT5 equ 55
+
+ONBUTTON equ 56
+OFFBUTTON equ 57
+VOLUMEBUTTON equ 58
+SMALLHIGHLIGHT equ 59
+TIE equ 60
+P1WINS equ 61
+P2WINS equ 62
 
 REG1 equ 1
 DARK1 equ 3
@@ -177,12 +186,25 @@ ColorsButtonBMH HBITMAP ?
 ColorsButtonMaskBMH HBITMAP ?
 ImageButtonBMH HBITMAP ?
 ImageButtonMaskBMH HBITMAP ?
-HighlightBMH HBITMAP ?
-HighlightMaskBMH HBITMAP ?
+BigHighlightBMH HBITMAP ?
+BigHighlightMaskBMH HBITMAP ?
+SmallHighlightBMH HBITMAP ?
+SmallHighlightMaskBMH HBITMAP ?
 AudioGifBMH HBITMAP ?
 VolumeBarBMH HBITMAP ?
 VolumeBarMaskBMH HBITMAP ?
-
+VolumeButtonBMH HBITMAP ?
+VolumeButtonMaskBMH HBITMAP ?
+OnButtonBMH HBITMAP ?
+OnButtonMaskBMH HBITMAP ?
+OffButtonBMH HBITMAP ?
+OffButtonMaskBMH HBITMAP ?
+P1WinsBMH HBITMAP ?
+P1WinsMaskBMH HBITMAP ?
+P2WinsBMH HBITMAP ?
+P2WinsMaskBMH HBITMAP ?
+TieBMH HBITMAP ?
+TieMaskBMH HBITMAP ?
 Count1BMH HBITMAP ?
 Count1MaskBMH HBITMAP ?
 Count2BMH HBITMAP ?
@@ -211,6 +233,8 @@ NowKeyTime1 DWORD ?
 NowKeyTime2 DWORD ?
 BoostTime1 DWORD ?
 BoostTime2 DWORD ?
+BoostTiles1 DWORD ?
+BoostTiles2 DWORD ?
 SlowTime1 DWORD ?
 SlowTime2 DWORD ?
 LastMoveTime1 DWORD ?
@@ -220,7 +244,12 @@ NowFrameTime DWORD ?
 Frame DWORD 1
 Selected DWORD 1
 Image DWORD 1
+
 SelectorX DWORD ?
+Volume DWORD ?
+BackupVolume DWORD ?
+SFX DWORD 1
+Music DWORD 1
 
 Game1BMH HBITMAP ?
 Game2BMH HBITMAP ?
@@ -232,8 +261,11 @@ Game6BMH HBITMAP ?
 CoolTime DWORD ?
 MouseX DWORD ?
 MouseY DWORD ?
-W1Quarter DWORD ?
-W2Quarter DWORD ?
+W1Eighth DWORD ?
+W2Eighth DWORD ?
+W4Eighth DWORD ?
+W5Eighth DWORD ?
+W6Eighth DWORD ?
 H1Quarter DWORD ?
 H2Quarter DWORD ?
 H1Tenth DWORD ?
@@ -257,20 +289,66 @@ Boost DWORD ?
 CountDown DWORD ?
 CountTime DWORD ?
 
-playTheSonOfFlynn BYTE "play TheSonOfFlynn.mp3",0
+Winner DWORD ?
+hWnd HWND ?
+
+playTheSonOfFlynn BYTE "play TheSonOfFlynn.mp3 repeat",0
 pauseTheSonOfFlynn BYTE "pause TheSonOfFlynn.mp3",0
 resumeTheSonOfFlynn BYTE "resume TheSonOfFlynn.mp3",0
 stopTheSonOfFlynn BYTE "stop TheSonOfFlynn.mp3",0
-playTheGameHasChanged BYTE "play TheGameHasChanged.mp3",0
+playTheGameHasChanged BYTE "play TheGameHasChanged.mp3 repeat",0
 pauseTheGameHasChanged BYTE "pause TheGameHasChanged.mp3",0
 resumeTheGameHasChanged BYTE "resume TheGameHasChanged.mp3",0
 stopTheGameHasChanged BYTE "stop TheGameHasChanged.mp3",0
-playDerezzed BYTE "play Derezzed.mp3",0
+playDerezzed BYTE "play Derezzed.mp3 repeat",0
 pauseDerezzed BYTE "pause Derezzed.mp3",0
 resumeDerezzed BYTE "resume Derezzed.mp3",0
 stopDerezzed BYTE "stop Derezzed.mp3",0
+playOutlands BYTE "play Outlands.mp3 repeat",0
+pauseOutlands BYTE "pause Outlands.mp3",0
+resumeOutlands BYTE "resume Outlands.mp3",0
+stopOutlands BYTE "stop Outlands.mp3",0
+playRinzler BYTE "play Rinzler.mp3 repeat",0
+pauseRinzler BYTE "pause Rinzler.mp3",0
+resumeRinzler BYTE "resume Rinzler.mp3",0
+stopRinzler BYTE "stop Rinzler.mp3",0
+playEndOfLine BYTE "play EndOfLine.mp3 repeat",0
+pauseEndOfLine BYTE "pause EndOfLine.mp3",0
+resumeEndOfLine BYTE "resume EndOfLine.mp3",0
+stopEndOfLine BYTE "stop EndOfLine.mp3",0
+playScream BYTE "play Scream.mp3",0
+playBoost BYTE "play Boost.mp3",0
+playTurn BYTE "play Turn.mp3",0
+stopTurn BYTE "stop Turn.mp3",0
 
 .code
+
+StopMusic PROC
+;--------------------------------------------------------------------------------
+	invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
+	invoke mciSendString, offset stopTheSonOfFlynn, NULL, NULL, NULL
+	invoke mciSendString, offset stopTheGameHasChanged, NULL, NULL, NULL
+	invoke mciSendString, offset stopRinzler, NULL, NULL, NULL
+	invoke mciSendString, offset stopOutlands, NULL, NULL, NULL
+	invoke mciSendString, offset stopEndOfLine, NULL, NULL, NULL
+	ret
+;================================================================================
+StopMusic ENDP
+
+ResizeWindow PROC, newwidth:DWORD, newheight:DWORD
+;--------------------------------------------------------------------------------
+	invoke DestroyWindow, hWnd
+	mov eax, newwidth
+	add eax, 15
+	mov ebx, newheight
+	add ebx, 40
+	invoke CreateWindowExA, WS_EX_COMPOSITED, addr ClassName, addr windowTitle, WS_SYSMENU, 0, 0, eax, ebx, 0, 0, 0, 0 ;Create the window
+	mov hWnd, eax ;Save the handle
+	invoke ShowWindow, eax, SW_SHOW ;Show it
+	invoke SetTimer, hWnd, MAIN_TIMER_ID, 20, NULL ;Set the repaint timer
+	ret
+;================================================================================
+ResizeWindow ENDP
 
 CheckMouse PROC, mousex:DWORD, mousey:DWORD, buttonx:DWORD, buttony:DWORD, buttonw:DWORD, buttonh:DWORD
 ;--------------------------------------------------------------------------------
@@ -321,10 +399,18 @@ Scale PROC, w:DWORD
 	mov RealWidth, ecx
 	xor edx, edx
 	div ebx
-	mov W2Quarter, eax
+	mov W4Eighth, eax
 	xor edx, edx
 	div ebx
-	mov W1Quarter, eax
+	mov W2Eighth, eax
+	xor edx, edx
+	div ebx
+	mov W1Eighth, eax
+	mov eax, W4Eighth
+	add eax, W1Eighth
+	mov W5Eighth, eax
+	add eax, W1Eighth
+	mov W6Eighth, eax
 	mov eax, w
 	mov ebx, 3
 	xor edx, edx
@@ -408,6 +494,7 @@ Scale PROC, w:DWORD
 	div ebx
 	mov Y1, eax
 	mov Y2, eax
+	invoke ResizeWindow, WinWidth, WinHeight
 	ret
 ;================================================================================
 Scale ENDP
@@ -522,7 +609,7 @@ local hold2:HBITMAP
 ;================================================================================
 Get_Handle_To_Mask_Bitmap ENDP
 
-DrawBG PROC, mystatus:DWORD, myrect:RECT, hdc:HDC, hWnd:HWND
+DrawBG PROC, mystatus:DWORD, myrect:RECT, hdc:HDC, myhWnd:HWND
 ;----------------------------------------------------------------------------
 	local OldHandle:HBITMAP
 
@@ -558,7 +645,7 @@ DrawBG PROC, mystatus:DWORD, myrect:RECT, hdc:HDC, hWnd:HWND
 
 gamedraw:
 	invoke DrawImage, hdc, CurrentBMH, 0, 0, 0, 0, WinWidth, WinHeight, 1000, 750
-	cmp CountDown, 0				;-1
+	cmp CountDown, 0		;-1
 	je nocount
 	;cmp CountDown, 0
 	;je countgo
@@ -575,27 +662,27 @@ gamedraw:
 	ret
 
 countgo:
-	invoke DrawImage_WithMask, hdc, CountGoBMH, CountGoMaskBMH, W1Quarter, H1Quarter, 0, 0, W2Quarter, H2Quarter, 679, 346
+	invoke DrawImage_WithMask, hdc, CountGoBMH, CountGoMaskBMH, W2Eighth, H1Quarter, 0, 0, W4Eighth, H2Quarter, 679, 346
 	ret
 
 count1:
-	invoke DrawImage_WithMask, hdc, Count1BMH, Count1MaskBMH, W1Quarter, H1Quarter, 0, 0, W2Quarter, H2Quarter, 346, 346
+	invoke DrawImage_WithMask, hdc, Count1BMH, Count1MaskBMH, W2Eighth, H1Quarter, 0, 0, W4Eighth, H2Quarter, 346, 346
 	ret
 
 count2:
-	invoke DrawImage_WithMask, hdc, Count2BMH, Count2MaskBMH, W1Quarter, H1Quarter, 0, 0, W2Quarter, H2Quarter, 346, 346
+	invoke DrawImage_WithMask, hdc, Count2BMH, Count2MaskBMH, W2Eighth, H1Quarter, 0, 0, W4Eighth, H2Quarter, 346, 346
 	ret
 
 count3:
-	invoke DrawImage_WithMask, hdc, Count3BMH, Count3MaskBMH, W1Quarter, H1Quarter, 0, 0, W2Quarter, H2Quarter, 346, 346
+	invoke DrawImage_WithMask, hdc, Count3BMH, Count3MaskBMH, W2Eighth, H1Quarter, 0, 0, W4Eighth, H2Quarter, 346, 346
 	ret
 
 count4:
-	invoke DrawImage_WithMask, hdc, Count4BMH, Count4MaskBMH, W1Quarter, H1Quarter, 0, 0, W2Quarter, H2Quarter, 346, 346
+	invoke DrawImage_WithMask, hdc, Count4BMH, Count4MaskBMH, W2Eighth, H1Quarter, 0, 0, W4Eighth, H2Quarter, 346, 346
 	ret
 
 count5:
-	invoke DrawImage_WithMask, hdc, Count5BMH, Count5MaskBMH, W1Quarter, H1Quarter, 0, 0, W2Quarter, H2Quarter, 346, 346
+	invoke DrawImage_WithMask, hdc, Count5BMH, Count5MaskBMH, W2Eighth, H1Quarter, 0, 0, W4Eighth, H2Quarter, 346, 346
 	ret
 
 nocount:
@@ -619,27 +706,27 @@ mainmenudraw:	;new game, settings, help, credits, exit
 	ret
 	
 mainmenunewgameselect:
-	invoke DrawImage_WithMask, hdc, HighlightBMH, HighlightMaskBMH, W1Quarter, H1Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W2Eighth, H1Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 	jmp nextmainmenu
 mainmenusettingsselect:
-	invoke DrawImage_WithMask, hdc, HighlightBMH, HighlightMaskBMH, W1Quarter, H2Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W2Eighth, H2Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 	jmp nextmainmenu
 mainmenuhelpselect:
-	invoke DrawImage_WithMask, hdc, HighlightBMH, HighlightMaskBMH, W1Quarter, H3Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W2Eighth, H3Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 	jmp nextmainmenu
 mainmenucreditsselect:
-	invoke DrawImage_WithMask, hdc, HighlightBMH, HighlightMaskBMH, W1Quarter, H4Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W2Eighth, H4Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 	jmp nextmainmenu
 mainmenuexitselect:
-	invoke DrawImage_WithMask, hdc, HighlightBMH, HighlightMaskBMH, W1Quarter, H5Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W2Eighth, H5Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 	jmp nextmainmenu
 
 nextmainmenu:
-	invoke DrawImage_WithMask, hdc, NewGameButtonBMH, NewGameButtonMaskBMH, W1Quarter, H1Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
-	invoke DrawImage_WithMask, hdc, SettingsButtonBMH, SettingsButtonMaskBMH,  W1Quarter, H2Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
-	invoke DrawImage_WithMask, hdc, HelpButtonBMH, HelpButtonMaskBMH,  W1Quarter, H3Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
-	invoke DrawImage_WithMask, hdc, CreditsButtonBMH, CreditsButtonMaskBMH,  W1Quarter, H4Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
-	invoke DrawImage_WithMask, hdc, ExitButtonBMH, ExitButtonMaskBMH,  W1Quarter, H5Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, NewGameButtonBMH, NewGameButtonMaskBMH, W2Eighth, H1Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, SettingsButtonBMH, SettingsButtonMaskBMH,  W2Eighth, H2Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, HelpButtonBMH, HelpButtonMaskBMH,  W2Eighth, H3Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, CreditsButtonBMH, CreditsButtonMaskBMH,  W2Eighth, H4Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, ExitButtonBMH, ExitButtonMaskBMH,  W2Eighth, H5Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 	invoke GetTickCount
 	mov NowFrameTime, eax
 	sub eax, LastFrameTime
@@ -660,7 +747,7 @@ mainmenugifloop:
 	mov Frame, eax
 	ret
 
-settingsdraw:		;audio, graphics, back
+settingsdraw:	;audio, graphics, back
 	mov eax, Frame
 	dec eax
 	imul eax, 1000
@@ -675,21 +762,21 @@ settingsdraw:		;audio, graphics, back
 	ret
 
 settingsaudioselect:
-	invoke DrawImage_WithMask, hdc, HighlightBMH, HighlightMaskBMH, W1Quarter, H1Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W2Eighth, H1Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 	jmp nextsettings
 
 settingsgraphicsselect:
-	invoke DrawImage_WithMask, hdc, HighlightBMH, HighlightMaskBMH, W1Quarter, H2Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W2Eighth, H2Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 	jmp nextsettings
 
 settingsbackselect:
-	invoke DrawImage_WithMask, hdc, HighlightBMH, HighlightMaskBMH, W1Quarter, H3Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W2Eighth, H3Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 	jmp nextsettings
 
 nextsettings:
-	invoke DrawImage_WithMask, hdc, AudioButtonBMH, AudioButtonMaskBMH, W1Quarter, H1Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
-	invoke DrawImage_WithMask, hdc, GraphicsButtonBMH, GraphicsButtonMaskBMH,  W1Quarter, H2Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
-	invoke DrawImage_WithMask, hdc, BackButtonBMH, BackButtonMaskBMH,  W1Quarter, H3Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, AudioButtonBMH, AudioButtonMaskBMH, W2Eighth, H1Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, GraphicsButtonBMH, GraphicsButtonMaskBMH,  W2Eighth, H2Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, BackButtonBMH, BackButtonMaskBMH,  W2Eighth, H3Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 	invoke GetTickCount
 	mov NowFrameTime, eax
 	sub eax, LastFrameTime
@@ -710,7 +797,7 @@ settingsgifloop:
 	mov Frame, eax
 	ret
 
-pausingdraw:		;resume, new game, settings, help, mainmenu
+pausingdraw:	;resume, new game, settings, help, mainmenu
 	mov eax, Frame
 	dec eax
 	imul eax, 1000
@@ -728,31 +815,31 @@ pausingdraw:		;resume, new game, settings, help, mainmenu
 	ret
 
 pausingresumeselected:
-	invoke DrawImage_WithMask, hdc, HighlightBMH, HighlightMaskBMH, W1Quarter, H1Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W2Eighth, H1Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 	jmp nextpausing
 
 pausingnewgameselected:
-	invoke DrawImage_WithMask, hdc, HighlightBMH, HighlightMaskBMH, W1Quarter, H2Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W2Eighth, H2Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 	jmp nextpausing
 
 pausingsettingsselected:
-	invoke DrawImage_WithMask, hdc, HighlightBMH, HighlightMaskBMH, W1Quarter, H3Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W2Eighth, H3Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 	jmp nextpausing
 
 pausinghelpselected:
-	invoke DrawImage_WithMask, hdc, HighlightBMH, HighlightMaskBMH, W1Quarter, H4Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W2Eighth, H4Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 	jmp nextpausing
 
 pausingmainmenuselected:
-	invoke DrawImage_WithMask, hdc, HighlightBMH, HighlightMaskBMH, W1Quarter, H5Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W2Eighth, H5Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 	jmp nextpausing
 
 nextpausing:
-	invoke DrawImage_WithMask, hdc, ResumeButtonBMH, ResumeButtonMaskBMH, W1Quarter, H1Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
-	invoke DrawImage_WithMask, hdc, NewGameButtonBMH, NewGameButtonMaskBMH,  W1Quarter, H2Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
-	invoke DrawImage_WithMask, hdc, SettingsButtonBMH, SettingsButtonMaskBMH,  W1Quarter, H3Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
-	invoke DrawImage_WithMask, hdc, HelpButtonBMH, HelpButtonMaskBMH,  W1Quarter, H4Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
-	invoke DrawImage_WithMask, hdc, MainMenuButtonBMH, MainMenuButtonMaskBMH,  W1Quarter, H5Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, ResumeButtonBMH, ResumeButtonMaskBMH, W2Eighth, H1Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, NewGameButtonBMH, NewGameButtonMaskBMH,  W2Eighth, H2Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, SettingsButtonBMH, SettingsButtonMaskBMH,  W2Eighth, H3Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, HelpButtonBMH, HelpButtonMaskBMH,  W2Eighth, H4Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, MainMenuButtonBMH, MainMenuButtonMaskBMH,  W2Eighth, H5Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 	invoke GetTickCount
 	mov NowFrameTime, eax
 	sub eax, LastFrameTime
@@ -773,7 +860,7 @@ pausinggifloop:
 	mov Frame, eax
 	ret
 
-endingdraw:			;new game, credits, mainmenu, exit
+endingdraw:		;new game, credits, mainmenu, exit
 	mov eax, Frame
 	dec eax
 	imul eax, 1000
@@ -790,26 +877,42 @@ endingdraw:			;new game, credits, mainmenu, exit
 	ret
 
 endingnewgameselected:
-	invoke DrawImage_WithMask, hdc, HighlightBMH, HighlightMaskBMH, W1Quarter, H1Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W2Eighth, H3Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 	jmp nextending
 
 endingcreditsselected:
-	invoke DrawImage_WithMask, hdc, HighlightBMH, HighlightMaskBMH, W1Quarter, H2Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W2Eighth, H4Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 	jmp nextending
 
 endingmainmenuselected:
-	invoke DrawImage_WithMask, hdc, HighlightBMH, HighlightMaskBMH, W1Quarter, H3Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W2Eighth, H5Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 	jmp nextending
 
 endingexitselected:
-	invoke DrawImage_WithMask, hdc, HighlightBMH, HighlightMaskBMH, W1Quarter, H4Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W2Eighth, H6Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 	jmp nextending
 
 nextending:
-	invoke DrawImage_WithMask, hdc, NewGameButtonBMH, NewGameButtonMaskBMH,  W1Quarter, H1Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
-	invoke DrawImage_WithMask, hdc, CreditsButtonBMH, CreditsButtonMaskBMH, W1Quarter, H2Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
-	invoke DrawImage_WithMask, hdc, MainMenuButtonBMH, MainMenuButtonMaskBMH,  W1Quarter, H3Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
-	invoke DrawImage_WithMask, hdc, ExitButtonBMH, ExitButtonMaskBMH,  W1Quarter, H4Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, NewGameButtonBMH, NewGameButtonMaskBMH,  W2Eighth, H3Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, CreditsButtonBMH, CreditsButtonMaskBMH, W2Eighth, H4Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, MainMenuButtonBMH, MainMenuButtonMaskBMH,  W2Eighth, H5Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, ExitButtonBMH, ExitButtonMaskBMH,  W2Eighth, H6Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
+	cmp Winner, 1
+	je Win1
+	cmp Winner, 2
+	je Win2
+	cmp Winner, 0
+	je Tie
+Win1:
+	invoke DrawImage_WithMask, hdc, P1WinsBMH, P1WinsMaskBMH,  W1Eighth, H1Tenth, 0, 0, W6Eighth, H2Tenth, 2713, 679
+	jmp endinggif
+Win2:
+	invoke DrawImage_WithMask, hdc, P2WinsBMH, P2WinsMaskBMH,  W1Eighth, H1Tenth, 0, 0, W6Eighth, H2Tenth, 2713, 679
+	jmp endinggif
+Tie:
+	invoke DrawImage_WithMask, hdc, TieBMH, TieMaskBMH,  W1Eighth, H1Tenth, 0, 0, W6Eighth, H2Tenth, 2713, 679
+	jmp endinggif
+endinggif:
 	invoke GetTickCount
 	mov NowFrameTime, eax
 	sub eax, LastFrameTime
@@ -844,46 +947,80 @@ helpingdraw:
 	ret
 creditsdraw:
 	ret
-audiodraw:			;music, sfx, mute, track, back
+audiodraw:		;volume, music, sfx, mute, track, back
 	mov eax, Frame
 	dec eax
 	imul eax, 1000
 	invoke DrawImage, hdc, AudioBMH, 0, 0, eax, 0, WinWidth, WinHeight, 1000, 750
 	cmp Selected, 1
-	je audiomusicselected
+	je audiovolumeselected
 	cmp Selected, 2
-	je audiosfxselected
+	je audiomusicselected
 	cmp Selected, 3
-	je audiomuteselected
+	je audiosfxselected
 	cmp Selected, 4
-	je audiotrackselected
+	je audiomuteselected
 	cmp Selected, 5
+	je audiotrackselected
+	cmp Selected, 6
 	je audiobackselected
 	jmp nextaudio
 
+audiovolumeselected:
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W2Eighth, H1Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
+	jmp nextaudio
 audiomusicselected:
-	invoke DrawImage_WithMask, hdc, HighlightBMH, HighlightMaskBMH, W1Quarter, H1Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W1Eighth, H3Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 	jmp nextaudio
 audiosfxselected:
-	invoke DrawImage_WithMask, hdc, HighlightBMH, HighlightMaskBMH, W1Quarter, H3Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W1Eighth, H4Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 	jmp nextaudio
 audiomuteselected:
-	invoke DrawImage_WithMask, hdc, HighlightBMH, HighlightMaskBMH, W1Quarter, H5Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W2Eighth, H5Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 	jmp nextaudio
 audiotrackselected:
-	invoke DrawImage_WithMask, hdc, HighlightBMH, HighlightMaskBMH, W1Quarter, H6Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W2Eighth, H6Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 	jmp nextaudio
 audiobackselected:
-	invoke DrawImage_WithMask, hdc, HighlightBMH, HighlightMaskBMH, W1Quarter, H7Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W2Eighth, H7Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 	jmp nextaudio
 nextaudio:
-	invoke DrawImage_WithMask, hdc, MusicButtonBMH, MusicButtonMaskBMH, W1Quarter, H1Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
-	invoke DrawImage_WithMask, hdc, VolumeBarBMH, VolumeBarMaskBMH, W1Quarter, H2Tenth, 0, 0, W2Quarter, H1Tenth, 1500, 200
-	invoke DrawImage_WithMask, hdc, SFXButtonBMH, SFXButtonMaskBMH, W1Quarter, H3Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
-	invoke DrawImage_WithMask, hdc, VolumeBarBMH, VolumeBarMaskBMH, W1Quarter, H4Tenth, 0, 0, W2Quarter, H1Tenth, 1500, 200
-	invoke DrawImage_WithMask, hdc, MuteButtonBMH, MuteButtonMaskBMH, W1Quarter, H5Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
-	invoke DrawImage_WithMask, hdc, TrackButtonBMH, TrackButtonMaskBMH, W1Quarter, H6Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
-	invoke DrawImage_WithMask, hdc, BackButtonBMH, BackButtonMaskBMH, W1Quarter, H7Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, VolumeButtonBMH, VolumeButtonMaskBMH, W2Eighth, H1Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, VolumeBarBMH, VolumeBarMaskBMH, W2Eighth, H2Tenth, 0, 0, W4Eighth, H1Tenth, 1500, 200
+	invoke DrawImage_WithMask, hdc, MusicButtonBMH, MusicButtonMaskBMH, W1Eighth, H3Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, SFXButtonBMH, SFXButtonMaskBMH, W1Eighth, H4Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, MuteButtonBMH, MuteButtonMaskBMH, W2Eighth, H5Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, TrackButtonBMH, TrackButtonMaskBMH, W2Eighth, H6Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, BackButtonBMH, BackButtonMaskBMH, W2Eighth, H7Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, SmallHighlightBMH, SmallHighlightMaskBMH, W5Eighth, H3Tenth, 0, 0, W2Eighth, H1Tenth, 913, 346
+	invoke DrawImage_WithMask, hdc, SmallHighlightBMH, SmallHighlightMaskBMH, W5Eighth, H4Tenth, 0, 0, W2Eighth, H1Tenth, 913, 346
+audiomusiccheck:
+	mov eax, Music
+	cmp eax, 1
+	je audiomusicon
+	cmp eax, 0
+	je audiomusicoff
+	ret
+audiomusicon:
+	invoke DrawImage_WithMask, hdc, OnButtonBMH, OnButtonMaskBMH, W5Eighth, H3Tenth, 0, 0, W2Eighth, H1Tenth, 913, 346
+	jmp audiosfxcheck
+audiomusicoff:
+	invoke DrawImage_WithMask, hdc, OffButtonBMH, OffButtonMaskBMH, W5Eighth, H3Tenth, 0, 0, W2Eighth, H1Tenth, 913, 346
+	jmp audiosfxcheck
+audiosfxcheck:
+	mov eax, SFX
+	cmp eax, 1
+	je audiosfxon
+	cmp eax, 0
+	je audiosfxoff
+	ret
+audiosfxon:
+	invoke DrawImage_WithMask, hdc, OnButtonBMH, OnButtonMaskBMH, W5Eighth, H4Tenth, 0, 0, W2Eighth, H1Tenth, 913, 346
+	jmp audiogifcheck
+audiosfxoff:
+	invoke DrawImage_WithMask, hdc, OffButtonBMH, OffButtonMaskBMH, W5Eighth, H4Tenth, 0, 0, W2Eighth, H1Tenth, 913, 346
+	jmp audiogifcheck
+audiogifcheck:
 	invoke GetTickCount
 	mov NowFrameTime, eax
 	sub eax, LastFrameTime
@@ -904,7 +1041,7 @@ audiogifloop:
 	mov Frame, eax
 	ret
 
-graphicsdraw:		;colors, image, resize, back
+graphicsdraw:	;colors, image, resize, back
 	mov eax, Frame
 	dec eax
 	imul eax, 1000
@@ -920,23 +1057,23 @@ graphicsdraw:		;colors, image, resize, back
 	jmp nextgraphics
 
 graphicscolorsselected:
-	invoke DrawImage_WithMask, hdc, HighlightBMH, HighlightMaskBMH, W1Quarter, H1Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W2Eighth, H1Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 	jmp nextgraphics
 graphicsimageselected:
-	invoke DrawImage_WithMask, hdc, HighlightBMH, HighlightMaskBMH, W1Quarter, H2Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W2Eighth, H2Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 	jmp nextgraphics
 graphicsresizeselected:
-	invoke DrawImage_WithMask, hdc, HighlightBMH, HighlightMaskBMH, W1Quarter, H6Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W2Eighth, H6Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 	jmp nextgraphics
 graphicsbackselected:
-	invoke DrawImage_WithMask, hdc, HighlightBMH, HighlightMaskBMH, W1Quarter, H7Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W2Eighth, H7Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 	jmp nextgraphics
 nextgraphics:
-	invoke DrawImage_WithMask, hdc, ColorsButtonBMH, ColorsButtonMaskBMH, W1Quarter, H1Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
-	invoke DrawImage_WithMask, hdc, ImageButtonBMH, ImageButtonMaskBMH, W1Quarter, H2Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
-	invoke DrawImage, hdc, CurrentBMH, W1Quarter, H3Tenth, 0, 0, W2Quarter, H3Tenth, 1000, 750
-	invoke DrawImage_WithMask, hdc, ResizeButtonBMH, ResizeButtonMaskBMH, W1Quarter, H6Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
-	invoke DrawImage_WithMask, hdc, BackButtonBMH, BackButtonMaskBMH, W1Quarter, H7Tenth, 0, 0, W2Quarter, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, ColorsButtonBMH, ColorsButtonMaskBMH, W2Eighth, H1Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, ImageButtonBMH, ImageButtonMaskBMH, W2Eighth, H2Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
+	invoke DrawImage, hdc, CurrentBMH, W2Eighth, H3Tenth, 0, 0, W4Eighth, H3Tenth, 1000, 750
+	invoke DrawImage_WithMask, hdc, ResizeButtonBMH, ResizeButtonMaskBMH, W2Eighth, H6Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, BackButtonBMH, BackButtonMaskBMH, W2Eighth, H7Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 	invoke GetTickCount
 	mov NowFrameTime, eax
 	sub eax, LastFrameTime
@@ -1093,9 +1230,10 @@ clear:
 	mov P2.boosts, al
 	mov eax, 3
 	mov CountDown, eax
-	invoke mciSendString, offset playDerezzed, NULL, NULL, NULL
 	invoke GetTickCount
 	mov CountTime, eax
+	mov BoostTime1, eax
+	mov BoostTime2, eax
 	ret
 ;============================================================================
 Restart ENDP
@@ -1281,7 +1419,7 @@ returning:
 ;============================================================================
 SetGrid ENDP
 
-MainProcedure PROC, hWnd:HWND, message:UINT, wParam:WPARAM, lParam:LPARAM
+MainProcedure PROC, myhWnd:HWND, message:UINT, wParam:WPARAM, lParam:LPARAM
 ;----------------------------------------------------------------------------
 local paint:PAINTSTRUCT
 local hdc:HDC
@@ -1322,6 +1460,7 @@ newgame:
 	mov eax, GAME
 	mov status, eax
 	invoke Restart
+	;invoke mciSendString, offset playDerezzed, NULL, NULL, NULL
 	ret
 
 settings:
@@ -1417,6 +1556,18 @@ track:
 colors:
 	ret
 
+music:
+	xor Music, 1
+	
+	ret
+
+sfx:
+	xor SFX, 1
+	ret
+
+volume:
+	ret
+
 image:
 	invoke ChangeImage
 	ret
@@ -1472,19 +1623,19 @@ statusmove:
 	je graphicshover
 	ret
 mainmenuhover:	;new game, settings, help, credits, exit
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H1Tenth, W2Quarter, H1Tenth
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H1Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
 	je mainmenunewgamehover
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H2Tenth, W2Quarter, H1Tenth
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H2Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
 	je mainmenusettingshover
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H3Tenth, W2Quarter, H1Tenth
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H3Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
 	je mainmenuhelphover
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H4Tenth, W2Quarter, H1Tenth
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H4Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
 	je mainmenucreditshover
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H5Tenth, W2Quarter, H1Tenth
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H5Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
 	je mainmenuexithover
 	ret
@@ -1512,13 +1663,13 @@ mainmenunohover:
 	ret
 
 settingshover:	;audio, graphics, back
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H1Tenth, W2Quarter, H1Tenth
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H1Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
 	je settingsaudiohover
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H2Tenth, W2Quarter, H1Tenth
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H2Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
 	je settingsgraphicshover
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H3Tenth, W2Quarter, H1Tenth
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H3Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
 	je settingsbackhover
 	ret
@@ -1538,19 +1689,19 @@ settingsnohover:
 	ret
 
 pausinghover:	;resume, new game, settings, help, mainmenu
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H1Tenth, W2Quarter, H1Tenth
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H1Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
 	je pausingresumehover
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H2Tenth, W2Quarter, H1Tenth
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H2Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
 	je pausingnewgamehover
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H3Tenth, W2Quarter, H1Tenth
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H3Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
 	je pausingsettingshover
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H4Tenth, W2Quarter, H1Tenth
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H4Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
 	je pausinghelphover
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H5Tenth, W2Quarter, H1Tenth
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H5Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
 	je pausingmainmenuhover
 	ret
@@ -1578,16 +1729,16 @@ pausingnohover:
 	ret
 
 endinghover:	;new game, credits, mainmenu, exit
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H1Tenth, W2Quarter, H1Tenth
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H3Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
 	je endingnewgamehover
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H2Tenth, W2Quarter, H1Tenth
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H4Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
 	je endingcreditshover
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H3Tenth, W2Quarter, H1Tenth
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H5Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
 	je endingmainmenuhover
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H4Tenth, W2Quarter, H1Tenth
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H6Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
 	je endingexithover
 	ret
@@ -1610,72 +1761,82 @@ endingexithover:
 endingnohover:
 	ret
 
-audiohover:		;music, sfx, mute, track, back
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H1Tenth, W2Quarter, H1Tenth
+audiohover:	;volume, music, sfx, mute, track, back
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H1Tenth, W4Eighth, H1Tenth
+	cmp eax, 1
+	je audiovolumehover
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H2Tenth, W4Eighth, H1Tenth
+	cmp eax, 1
+	je audiovolumehover
+	invoke CheckMouse, MouseX, MouseY, W1Eighth, H3Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
 	je audiomusichover
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H2Tenth, W2Quarter, H1Tenth
+	invoke CheckMouse, MouseX, MouseY, W5Eighth, H3Tenth, W2Eighth, H1Tenth
 	cmp eax, 1
 	je audiomusichover
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H3Tenth, W2Quarter, H1Tenth
+	invoke CheckMouse, MouseX, MouseY, W1Eighth, H4Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
 	je audiosfxhover
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H4Tenth, W2Quarter, H1Tenth
+	invoke CheckMouse, MouseX, MouseY, W5Eighth, H4Tenth, W2Eighth, H1Tenth
 	cmp eax, 1
 	je audiosfxhover
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H5Tenth, W2Quarter, H1Tenth
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H5Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
 	je audiomutehover
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H6Tenth, W2Quarter, H1Tenth
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H6Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
 	je audiotrackhover
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H7Tenth, W2Quarter, H1Tenth
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H7Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
 	je audiobackhover
 	ret
-audiomusichover:
+audiovolumehover:
 	mov eax, 1
 	mov Selected, eax
 	ret
-audiosfxhover:
+audiomusichover:
 	mov eax, 2
 	mov Selected, eax
 	ret
-audiomutehover:
+audiosfxhover:
 	mov eax, 3
 	mov Selected, eax
 	ret
-audiotrackhover:
+audiomutehover:
 	mov eax, 4
 	mov Selected, eax
 	ret
-audiobackhover:
+audiotrackhover:
 	mov eax, 5
+	mov Selected, eax
+	ret
+audiobackhover:
+	mov eax, 6
 	mov Selected, eax
 	ret
 audionohover:
 	ret
 
 graphicshover:	;colors, image, resize, back
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H1Tenth, W2Quarter, H1Tenth
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H1Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
 	je graphicscolorshover
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H2Tenth, W2Quarter, H1Tenth
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H2Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
 	je graphicsimagehover
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H3Tenth, W2Quarter, H1Tenth
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H3Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
 	je graphicsimagehover
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H4Tenth, W2Quarter, H1Tenth
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H4Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
 	je graphicsimagehover
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H5Tenth, W2Quarter, H1Tenth
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H5Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
 	je graphicsimagehover
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H6Tenth, W2Quarter, H1Tenth
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H6Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
 	je graphicsresizehover
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H7Tenth, W2Quarter, H1Tenth
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H7Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
 	je graphicsbackhover
 	ret
@@ -1720,178 +1881,120 @@ statusclick:
 	je graphicsclick
 	ret
 mainmenuclick:	;new game, settings, help, credits, exit
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H1Tenth, W2Quarter, H1Tenth
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H1Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
-	je mainmenunewgameclick
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H2Tenth, W2Quarter, H1Tenth
+	je newgame
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H2Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
-	je mainmenusettingsclick
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H3Tenth, W2Quarter, H1Tenth
+	je settings
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H3Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
-	je mainmenuhelpclick
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H4Tenth, W2Quarter, H1Tenth
+	je help
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H4Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
-	je mainmenucreditsclick
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H5Tenth, W2Quarter, H1Tenth
+	je credits
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H5Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
-	je mainmenuexitclick
-	ret
-mainmenunewgameclick:
-	jmp newgame
-mainmenusettingsclick:
-	jmp settings
-mainmenuhelpclick:
-	jmp help
-mainmenucreditsclick:
-	jmp credits
-mainmenuexitclick:
-	jmp exiting
-mainmenunoclick:
+	je exiting
 	ret
 
 settingsclick:	;audio, graphics, back
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H1Tenth, W2Quarter, H1Tenth
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H1Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
-	je settingsaudioclick
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H2Tenth, W2Quarter, H1Tenth
+	je audio
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H2Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
-	je settingsgraphicsclick
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H3Tenth, W2Quarter, H1Tenth
+	je graphics
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H3Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
-	je settingsbackclick
-	ret
-settingsaudioclick:
-	jmp audio
-settingsgraphicsclick:
-	jmp graphics
-settingsbackclick:
-	jmp backing
-settingsnoclick:
+	je backing
 	ret
 
 pausingclick:	;resume, new game, settings, help, mainmenu
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H1Tenth, W2Quarter, H1Tenth
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H1Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
-	je pausingresumeclick
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H2Tenth, W2Quarter, H1Tenth
+	je resume
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H2Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
-	je pausingnewgameclick
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H3Tenth, W2Quarter, H1Tenth
+	je newgame
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H3Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
-	je pausingsettingsclick
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H4Tenth, W2Quarter, H1Tenth
+	je settings
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H4Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
-	je pausinghelpclick
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H5Tenth, W2Quarter, H1Tenth
+	je help
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H5Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
-	je pausingmainmenuclick
-	ret
-pausingresumeclick:
-	jmp resume
-pausingnewgameclick:
-	jmp newgame
-pausingsettingsclick:
-	jmp settings
-pausinghelpclick:
-	jmp help
-pausingmainmenuclick:
-	jmp mainmenu
-pausingnoclick:
+	je mainmenu
 	ret
 
 endingclick:	;new game, credits, mainmenu, exit
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H1Tenth, W2Quarter, H1Tenth
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H3Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
-	je endingnewgameclick
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H2Tenth, W2Quarter, H1Tenth
+	je newgame
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H4Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
-	je endingcreditsclick
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H3Tenth, W2Quarter, H1Tenth
+	je credits
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H5Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
-	je endingmainmenuclick
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H4Tenth, W2Quarter, H1Tenth
+	je mainmenu
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H6Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
-	je endingexitclick
-	ret
-endingnewgameclick:
-	jmp newgame
-endingcreditsclick:
-	jmp credits
-endingmainmenuclick:
-	jmp mainmenu
-endingexitclick:
-	jmp exiting
-endingnoclick:
+	je exiting
 	ret
 
-audioclick:		;music, sfx, mute, track, back
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H1Tenth, W2Quarter, H1Tenth
+audioclick:	;volume, music, sfx, mute, track, back
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H1Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
-	je audiomusicclick
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H2Tenth, W2Quarter, H1Tenth
+	je mute
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H2Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
-	je audiomusicclick
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H3Tenth, W2Quarter, H1Tenth
+	je volume
+	invoke CheckMouse, MouseX, MouseY, W1Eighth, H3Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
-	je audiosfxclick
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H4Tenth, W2Quarter, H1Tenth
+	je music
+	invoke CheckMouse, MouseX, MouseY, W5Eighth, H3Tenth, W2Eighth, H1Tenth
 	cmp eax, 1
-	je audiosfxclick
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H5Tenth, W2Quarter, H1Tenth
+	je music
+	invoke CheckMouse, MouseX, MouseY, W1Eighth, H4Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
-	je audiomuteclick
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H6Tenth, W2Quarter, H1Tenth
+	je sfx
+	invoke CheckMouse, MouseX, MouseY, W5Eighth, H4Tenth, W2Eighth, H1Tenth
 	cmp eax, 1
-	je audiotrackclick
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H7Tenth, W2Quarter, H1Tenth
+	je sfx
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H5Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
-	je audiobackclick
-	ret
-audiomusicclick:
-	jmp mute
-audiosfxclick:
-	jmp mute
-audiomuteclick:
-	jmp mute
-audiotrackclick:
-	jmp track
-audiobackclick:
-	jmp audiotosettings
-audionoclick:
+	je mute
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H6Tenth, W4Eighth, H1Tenth
+	cmp eax, 1
+	je track
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H7Tenth, W4Eighth, H1Tenth
+	cmp eax, 1
+	je audiotosettings
 	ret
 
 graphicsclick:	;colors, image, resize, back
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H1Tenth, W2Quarter, H1Tenth
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H1Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
-	je graphicscolorsclick
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H2Tenth, W2Quarter, H1Tenth
+	je colors
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H2Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
-	je graphicsimageclick
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H3Tenth, W2Quarter, H1Tenth
+	je image
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H3Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
-	je graphicsimageclick
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H4Tenth, W2Quarter, H1Tenth
+	je image
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H4Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
-	je graphicsimageclick
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H5Tenth, W2Quarter, H1Tenth
+	je image
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H5Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
-	je graphicsimageclick
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H6Tenth, W2Quarter, H1Tenth
+	je image
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H6Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
-	je graphicsresizeclick
-	invoke CheckMouse, MouseX, MouseY, W1Quarter, H7Tenth, W2Quarter, H1Tenth
+	je resize
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H7Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
-	je graphicsbackclick
-	ret
-graphicscolorsclick:
-	jmp colors
-graphicsimageclick:
-	jmp image
-graphicsresizeclick:
-	jmp resize
-graphicsbackclick:
-	jmp graphicstosettings
-graphicsnoclick:
+	je graphicstosettings
 	ret
 
 statuskey:
@@ -2051,19 +2154,21 @@ audioupselect:
 	ret
 audiodownselect:
 	inc Selected
-	cmp Selected, 5	;number of buttons: music, sfx, mute, change song, back
+	cmp Selected, 6	;number of buttons: volume, music, sfx, mute, change song, back
 	jg audioselecttop
 	ret
 audioselect:
 	cmp Selected, 1
-	je mute				;;;;;
+	je mute		;;;;;
 	cmp Selected, 2
-	je mute				;;;;;
+	je music		;;;;;
 	cmp Selected, 3
-	je mute
+	je sfx
 	cmp Selected, 4
-	je track
+	je mute
 	cmp Selected, 5
+	je track
+	cmp Selected, 6
 	je audiotosettings
 	ret
 audioselecttop:
@@ -2071,7 +2176,7 @@ audioselecttop:
 	mov Selected, eax
 	ret
 audioselectbot:
-	mov eax, 5
+	mov eax, 6
 	mov Selected, eax
 	ret
 
@@ -2158,7 +2263,7 @@ gamemovement:
 	je pausing
 	cmp wParam, VK_R
 	je newgame
-	cmp CountDown, 0			;-1
+	cmp CountDown, 0		;-1
 	jne theend
 	;cmp wParam, VK_RSHIFT
 	;je gameboost1
@@ -2179,16 +2284,18 @@ gameboost1:
 	cmp P1.boosts, 0
 	je boostret1
 	invoke GetTickCount
+	sub eax, BoostTime1
+	cmp eax, 3000
+	jl boostret1
+	invoke GetTickCount
 	mov BoostTime1, eax
+	xor eax, eax
+	mov BoostTiles1, eax
 	mov eax, Boost
 	mov P1.speed, eax
 	dec P1.boosts
+	invoke mciSendString, offset playBoost, NULL, NULL, NULL
 boostret1:
-	ret
-
-endboost1:
-	mov eax, Speed
-	mov P1.speed, eax
 	ret
 
 gameboost2:
@@ -2198,16 +2305,18 @@ gameboost2:
 	cmp P2.boosts, 0
 	je boostret2
 	invoke GetTickCount
+	sub eax, BoostTime2
+	cmp eax, 3000
+	jl boostret1
+	invoke GetTickCount
 	mov BoostTime2, eax
+	xor eax, eax
+	mov BoostTiles2, eax
 	mov eax, Boost
 	mov P2.speed, eax
 	dec P2.boosts
+	invoke mciSendString, offset playBoost, NULL, NULL, NULL
 boostret2:
-	ret
-
-endboost2:
-	mov eax, Speed
-	mov P2.speed, eax
 	ret
 
 gamemovement1:
@@ -2249,6 +2358,8 @@ Vertically1:
 	ret
  
 left1:
+	;invoke mciSendString, offset stopTurn, NULL, NULL, NULL
+	;invoke mciSendString, offset playTurn, NULL, NULL, NULL
 	mov eax, LEFT
 	mov P1.facing, eax
 	mov P1.horizontal, 1
@@ -2256,6 +2367,8 @@ left1:
 	ret
 
 right1:
+	;invoke mciSendString, offset stopTurn, NULL, NULL, NULL
+	;invoke mciSendString, offset playTurn, NULL, NULL, NULL
 	mov eax, RIGHT
 	mov P1.facing, eax
 	mov P1.horizontal, 1
@@ -2263,6 +2376,8 @@ right1:
 	ret
 
 down1:
+	;invoke mciSendString, offset stopTurn, NULL, NULL, NULL
+	;invoke mciSendString, offset playTurn, NULL, NULL, NULL
 	mov eax, DOWN
 	mov P1.facing, eax
 	mov P1.horizontal, 0
@@ -2270,6 +2385,8 @@ down1:
 	ret
  
 up1:
+	;invoke mciSendString, offset stopTurn, NULL, NULL, NULL
+	;invoke mciSendString, offset playTurn, NULL, NULL, NULL
 	mov eax, UP
 	mov P1.facing, eax
 	mov P1.horizontal, 0
@@ -2315,6 +2432,8 @@ Vertically2:
 	ret
  
 left2:
+	;invoke mciSendString, offset stopTurn, NULL, NULL, NULL
+	;invoke mciSendString, offset playTurn, NULL, NULL, NULL
 	mov eax, LEFT
 	mov P2.facing, eax
 	mov P2.horizontal, 1
@@ -2322,6 +2441,8 @@ left2:
 	ret
  
 right2:
+	;invoke mciSendString, offset stopTurn, NULL, NULL, NULL
+	;invoke mciSendString, offset playTurn, NULL, NULL, NULL
 	mov eax, RIGHT
 	mov P2.facing, eax
 	mov P2.horizontal, 1
@@ -2329,6 +2450,8 @@ right2:
 	ret
  
 down2:
+	;invoke mciSendString, offset stopTurn, NULL, NULL, NULL
+	;invoke mciSendString, offset playTurn, NULL, NULL, NULL
 	mov eax, DOWN
 	mov P2.facing, eax
 	mov P2.horizontal, 0
@@ -2336,6 +2459,8 @@ down2:
 	ret
  
 up2:
+	;invoke mciSendString, offset stopTurn, NULL, NULL, NULL
+	;invoke mciSendString, offset playTurn, NULL, NULL, NULL
 	mov eax, UP
 	mov P2.facing, eax
 	mov P2.horizontal, 0
@@ -2363,7 +2488,7 @@ statuspainting:
 	jmp closing
 
 pausingpaint:
-	invoke BeginPaint, hWnd, addr paint
+	invoke BeginPaint, myhWnd, addr paint
 	mov hdc, eax
 	invoke CreateCompatibleDC, hdc
 	mov mem_hdc, eax
@@ -2371,16 +2496,16 @@ pausingpaint:
 	mov mem_hbm, eax
 	invoke SelectObject, mem_hdc, mem_hbm
 	mov OldHandle, eax
-	invoke DrawBG, status, rect, mem_hdc, hWnd
+	invoke DrawBG, status, rect, mem_hdc, myhWnd
 	invoke BitBlt, hdc, 0, 0, WinWidth, WinHeight, mem_hdc, 0, 0, SRCCOPY
 	invoke SelectObject, mem_hdc, OldHandle
 	invoke DeleteObject, mem_hbm
 	invoke DeleteDC, mem_hdc
-	invoke EndPaint, hWnd, addr paint
+	invoke EndPaint, myhWnd, addr paint
 	ret
 
 graphicspaint:
-	invoke BeginPaint, hWnd, addr paint
+	invoke BeginPaint, myhWnd, addr paint
 	mov hdc, eax
 	invoke CreateCompatibleDC, hdc
 	mov mem_hdc, eax
@@ -2388,16 +2513,16 @@ graphicspaint:
 	mov mem_hbm, eax
 	invoke SelectObject, mem_hdc, mem_hbm
 	mov OldHandle, eax
-	invoke DrawBG, status, rect, mem_hdc, hWnd
+	invoke DrawBG, status, rect, mem_hdc, myhWnd
 	invoke BitBlt, hdc, 0, 0, WinWidth, WinHeight, mem_hdc, 0, 0, SRCCOPY
 	invoke SelectObject, mem_hdc, OldHandle
 	invoke DeleteObject, mem_hbm
 	invoke DeleteDC, mem_hdc
-	invoke EndPaint, hWnd, addr paint
+	invoke EndPaint, myhWnd, addr paint
 	ret
 
 endingpaint:
-	invoke BeginPaint, hWnd, addr paint
+	invoke BeginPaint, myhWnd, addr paint
 	mov hdc, eax
 	invoke CreateCompatibleDC, hdc
 	mov mem_hdc, eax
@@ -2405,16 +2530,16 @@ endingpaint:
 	mov mem_hbm, eax
 	invoke SelectObject, mem_hdc, mem_hbm
 	mov OldHandle, eax
-	invoke DrawBG, status, rect, mem_hdc, hWnd
+	invoke DrawBG, status, rect, mem_hdc, myhWnd
 	invoke BitBlt, hdc, 0, 0, WinWidth, WinHeight, mem_hdc, 0, 0, SRCCOPY
 	invoke SelectObject, mem_hdc, OldHandle
 	invoke DeleteObject, mem_hbm
 	invoke DeleteDC, mem_hdc
-	invoke EndPaint, hWnd, addr paint
+	invoke EndPaint, myhWnd, addr paint
 	ret
 
 mainmenupaint:
-	invoke BeginPaint, hWnd, addr paint
+	invoke BeginPaint, myhWnd, addr paint
 	mov hdc, eax
 	invoke CreateCompatibleDC, hdc
 	mov mem_hdc, eax
@@ -2422,16 +2547,16 @@ mainmenupaint:
 	mov mem_hbm, eax
 	invoke SelectObject, mem_hdc, mem_hbm
 	mov OldHandle, eax
-	invoke DrawBG, status, rect, mem_hdc, hWnd
+	invoke DrawBG, status, rect, mem_hdc, myhWnd
 	invoke BitBlt, hdc, 0, 0, WinWidth, WinHeight, mem_hdc, 0, 0, SRCCOPY
 	invoke SelectObject, mem_hdc, OldHandle
 	invoke DeleteObject, mem_hbm
 	invoke DeleteDC, mem_hdc
-	invoke EndPaint, hWnd, addr paint
+	invoke EndPaint, myhWnd, addr paint
 	ret
 
 settingspaint:
-	invoke BeginPaint, hWnd, addr paint
+	invoke BeginPaint, myhWnd, addr paint
 	mov hdc, eax
 	invoke CreateCompatibleDC, hdc
 	mov mem_hdc, eax
@@ -2439,16 +2564,16 @@ settingspaint:
 	mov mem_hbm, eax
 	invoke SelectObject, mem_hdc, mem_hbm
 	mov OldHandle, eax
-	invoke DrawBG, status, rect, mem_hdc, hWnd
+	invoke DrawBG, status, rect, mem_hdc, myhWnd
 	invoke BitBlt, hdc, 0, 0, WinWidth, WinHeight, mem_hdc, 0, 0, SRCCOPY
 	invoke SelectObject, mem_hdc, OldHandle
 	invoke DeleteObject, mem_hbm
 	invoke DeleteDC, mem_hdc
-	invoke EndPaint, hWnd, addr paint
+	invoke EndPaint, myhWnd, addr paint
 	ret
 
 audiopaint:
-	invoke BeginPaint, hWnd, addr paint
+	invoke BeginPaint, myhWnd, addr paint
 	mov hdc, eax
 	invoke CreateCompatibleDC, hdc
 	mov mem_hdc, eax
@@ -2456,19 +2581,19 @@ audiopaint:
 	mov mem_hbm, eax
 	invoke SelectObject, mem_hdc, mem_hbm
 	mov OldHandle, eax
-	invoke DrawBG, status, rect, mem_hdc, hWnd
+	invoke DrawBG, status, rect, mem_hdc, myhWnd
 	invoke BitBlt, hdc, 0, 0, WinWidth, WinHeight, mem_hdc, 0, 0, SRCCOPY
 	invoke SelectObject, mem_hdc, OldHandle
 	invoke DeleteObject, mem_hbm
 	invoke DeleteDC, mem_hdc
-	invoke EndPaint, hWnd, addr paint
+	invoke EndPaint, myhWnd, addr paint
 	ret
 
 gamepaint:
-	cmp CountDown, 0			;-1
+	cmp CountDown, 0		;-1
 	je nextgamepaint
 
-	invoke BeginPaint, hWnd, addr paint
+	invoke BeginPaint, myhWnd, addr paint
 	mov hdc, eax
 	invoke CreateCompatibleDC, hdc
 	mov mem_hdc, eax
@@ -2476,7 +2601,7 @@ gamepaint:
 	mov mem_hbm, eax
 	invoke SelectObject, mem_hdc, mem_hbm
 	mov OldHandle, eax
-	invoke DrawBG, status, rect, mem_hdc, hWnd
+	invoke DrawBG, status, rect, mem_hdc, myhWnd
 	invoke SetGrid, P1.x, P1.y, 1
 	invoke SetGrid, P2.x, P2.y, 2
 	invoke DrawGrid, mem_hdc
@@ -2484,7 +2609,7 @@ gamepaint:
 	invoke SelectObject, mem_hdc, OldHandle
 	invoke DeleteObject, mem_hbm
 	invoke DeleteDC, mem_hdc
-	invoke EndPaint, hWnd, addr paint
+	invoke EndPaint, myhWnd, addr paint
 
 	invoke GetTickCount
 	sub eax, CountTime
@@ -2498,20 +2623,36 @@ Count:
 	ret
 
 nextgamepaint:
-	mov eax, Speed
-	cmp P1.speed, eax
-	je notboosting1
-	invoke GetTickCount
-	sub eax, BoostTime1
-	cmp eax, 500
-	jg endboost1
-notboosting1:
+	;mov eax, Speed
+	;cmp P1.speed, eax
+	;je notboosting1
+	;invoke GetTickCount
+	;sub eax, BoostTime1
+	;cmp eax, 300
+	;jg endboost1
+
+;notboosting1:
 	mov eax, P1.speed
 	mov ecx, MyD
 	xor edx, edx
 	div ecx
 	mov ecx, eax
 gamepaint1:
+	mov eax, Boost
+	cmp P1.speed, eax
+	jne next1
+	inc BoostTiles1
+	mov eax, BoostTiles1
+	cmp eax, 20
+	jg endboost1
+	jmp next1
+endboost1:
+	xor eax, eax
+	mov BoostTiles1, eax
+	mov eax, Speed
+	mov P1.speed, eax
+	jmp next1
+next1:
 	push ecx
 	cmp P1.facing, LEFT
 	je moveleft1
@@ -2589,10 +2730,13 @@ nottied1:
 
 dead1:
 	popa
+	invoke mciSendString, offset playScream, NULL, NULL, NULL
 	mov eax, status
 	mov laststatus, eax
 	mov eax, ENDING
 	mov status, eax
+	mov eax, 2
+	mov Winner, eax
 	ret
 
 notdead1:
@@ -2603,20 +2747,34 @@ notdead1:
 	cmp ecx, 0
 	jne gamepaint1
 
-	mov eax, Speed
-	cmp P2.speed, eax
-	je notboosting2
-	invoke GetTickCount
-	sub eax, BoostTime2
-	cmp eax, 500
-	jg endboost2
-notboosting2:
+	;mov eax, Speed
+	;cmp P2.speed, eax
+	;je notboosting2
+	;invoke GetTickCount
+	;sub eax, BoostTime2
+	;cmp eax, 300
+	;jg endboost2
 	mov eax, P2.speed
 	mov ecx, MyD
 	xor edx, edx
 	div ecx
 	mov ecx, eax
 gamepaint2:
+	mov eax, Boost
+	cmp P2.speed, eax
+	jne next2
+	inc BoostTiles2
+	mov eax, BoostTiles2
+	cmp eax, 20
+	jg endboost2
+	jmp next2
+endboost2:
+	xor eax, eax
+	mov BoostTiles2, eax
+	mov eax, Speed
+	mov P2.speed, eax
+	jmp next2
+next2:
 	push ecx
 	cmp P2.facing, LEFT
 	je moveleft2
@@ -2695,10 +2853,13 @@ nottied2:
 
 dead2:
 	popa
+	invoke mciSendString, offset playScream, NULL, NULL, NULL
 	mov eax, status
 	mov laststatus, eax
 	mov eax, ENDING
 	mov status, eax
+	mov eax, 1
+	mov Winner, eax
 	ret
  
 notdead2:
@@ -2709,7 +2870,7 @@ notdead2:
 	cmp ecx, 0
 	jne gamepaint2
 
-	invoke BeginPaint, hWnd, addr paint
+	invoke BeginPaint, myhWnd, addr paint
 	mov hdc, eax
 	invoke CreateCompatibleDC, hdc
 	mov mem_hdc, eax
@@ -2717,13 +2878,13 @@ notdead2:
 	mov mem_hbm, eax
 	invoke SelectObject, mem_hdc, mem_hbm
 	mov OldHandle, eax
-	invoke DrawBG, status, rect, mem_hdc, hWnd
+	invoke DrawBG, status, rect, mem_hdc, myhWnd
 	invoke DrawGrid, mem_hdc
 	invoke BitBlt, hdc, 0, 0, WinWidth, WinHeight, mem_hdc, 0, 0, SRCCOPY
 	invoke SelectObject, mem_hdc, OldHandle
 	invoke DeleteObject, mem_hbm
 	invoke DeleteDC, mem_hdc
-	invoke EndPaint, hWnd, addr paint
+	invoke EndPaint, myhWnd, addr paint
 	ret
 
 tied:
@@ -2732,10 +2893,12 @@ tied:
 	mov laststatus, eax
 	mov eax, ENDING
 	mov status, eax
+	mov eax, 0
+	mov Winner, eax
 	ret
 
 timing:
-	invoke InvalidateRect, hWnd, NULL, TRUE
+	invoke InvalidateRect, myhWnd, NULL, TRUE
 	cmp status, GAME
 	jne uncool
 	invoke GetTickCount
@@ -2758,16 +2921,17 @@ uncool:
 	ret
 
 OtherInstances:
-	invoke DefWindowProc, hWnd, message, wParam, lParam
+	invoke DefWindowProc, myhWnd, message, wParam, lParam
 	ret
 ;============================================================================
 MainProcedure ENDP
  
 main PROC
 LOCAL wndcls:WNDCLASSA
-LOCAL hWnd:HWND
 LOCAL msg:MSG
 invoke Scale, WinWidth
+invoke mciSendString, offset playBoost, NULL, NULL, NULL
+invoke mciSendString, offset playTurn, NULL, NULL, NULL
 invoke RtlZeroMemory, addr wndcls, SIZEOF wndcls ;Empty the window class
 mov eax, offset ClassName
 mov wndcls.lpszClassName, eax
@@ -2783,7 +2947,7 @@ invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, GAME1
 mov Game1BMH, eax
 mov eax, Game1BMH
-mov CurrentBMH, eax			;;;;;
+mov CurrentBMH, eax		;;;;;
 
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, GAME2
@@ -2856,157 +3020,199 @@ mov GraphicsBMH, eax
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, NEWGAMEBUTTON
 mov NewGameButtonBMH, eax
-invoke Get_Handle_To_Mask_Bitmap, NewGameButtonBMH, 0ffffffh		;white
+invoke Get_Handle_To_Mask_Bitmap, NewGameButtonBMH, 0ffffffh	;white
 mov NewGameButtonMaskBMH, eax
 
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, MAINMENUBUTTON
 mov MainMenuButtonBMH, eax
-invoke Get_Handle_To_Mask_Bitmap, MainMenuButtonBMH, 0ffffffh		;white
+invoke Get_Handle_To_Mask_Bitmap, MainMenuButtonBMH, 0ffffffh	;white
 mov MainMenuButtonMaskBMH, eax
 
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, BACKBUTTON
 mov BackButtonBMH, eax
-invoke Get_Handle_To_Mask_Bitmap, BackButtonBMH, 0ffffffh		;white
+invoke Get_Handle_To_Mask_Bitmap, BackButtonBMH, 0ffffffh	;white
 mov BackButtonMaskBMH, eax
 
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, SETTINGSBUTTON
 mov SettingsButtonBMH, eax
-invoke Get_Handle_To_Mask_Bitmap, SettingsButtonBMH, 0ffffffh		;white
+invoke Get_Handle_To_Mask_Bitmap, SettingsButtonBMH, 0ffffffh	;white
 mov SettingsButtonMaskBMH, eax
 
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, AUDIOBUTTON
 mov AudioButtonBMH, eax
-invoke Get_Handle_To_Mask_Bitmap, AudioButtonBMH, 0ffffffh		;white
+invoke Get_Handle_To_Mask_Bitmap, AudioButtonBMH, 0ffffffh	;white
 mov AudioButtonMaskBMH, eax
 
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, GRAPHICSBUTTON
 mov GraphicsButtonBMH, eax
-invoke Get_Handle_To_Mask_Bitmap, GraphicsButtonBMH, 0ffffffh		;white
+invoke Get_Handle_To_Mask_Bitmap, GraphicsButtonBMH, 0ffffffh	;white
 mov GraphicsButtonMaskBMH, eax
 
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, RESUMEBUTTON
 mov ResumeButtonBMH, eax
-invoke Get_Handle_To_Mask_Bitmap, ResumeButtonBMH, 0ffffffh		;white
+invoke Get_Handle_To_Mask_Bitmap, ResumeButtonBMH, 0ffffffh	;white
 mov ResumeButtonMaskBMH, eax
 
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, HELPBUTTON
 mov HelpButtonBMH, eax
-invoke Get_Handle_To_Mask_Bitmap, HelpButtonBMH, 0ffffffh		;white
+invoke Get_Handle_To_Mask_Bitmap, HelpButtonBMH, 0ffffffh	;white
 mov HelpButtonMaskBMH, eax
 
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, CREDITSBUTTON
 mov CreditsButtonBMH, eax
-invoke Get_Handle_To_Mask_Bitmap, CreditsButtonBMH, 0ffffffh		;white
+invoke Get_Handle_To_Mask_Bitmap, CreditsButtonBMH, 0ffffffh	;white
 mov CreditsButtonMaskBMH, eax
 
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, EXITBUTTON
 mov ExitButtonBMH, eax
-invoke Get_Handle_To_Mask_Bitmap, ExitButtonBMH, 0ffffffh		;white
+invoke Get_Handle_To_Mask_Bitmap, ExitButtonBMH, 0ffffffh	;white
 mov ExitButtonMaskBMH, eax
 
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, MUSICBUTTON
 mov MusicButtonBMH, eax
-invoke Get_Handle_To_Mask_Bitmap, MusicButtonBMH, 0ffffffh		;white
+invoke Get_Handle_To_Mask_Bitmap, MusicButtonBMH, 0ffffffh	;white
 mov MusicButtonMaskBMH, eax
 
 invoke GetModuleHandle, NULL
-invoke LoadBitmap, eax, HIGHLIGHT
-mov HighlightBMH, eax
-invoke Get_Handle_To_Mask_Bitmap, HighlightBMH, 0ffffffh		;white
-mov HighlightMaskBMH, eax
+invoke LoadBitmap, eax, BIGHIGHLIGHT
+mov BigHighlightBMH, eax
+invoke Get_Handle_To_Mask_Bitmap, BigHighlightBMH, 0ffffffh	;white
+mov BigHighlightMaskBMH, eax
+
+invoke GetModuleHandle, NULL
+invoke LoadBitmap, eax, SMALLHIGHLIGHT
+mov SmallHighlightBMH, eax
+invoke Get_Handle_To_Mask_Bitmap, SmallHighlightBMH, 0ffffffh	;white
+mov SmallHighlightMaskBMH, eax
 
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, IMAGEBUTTON
 mov ImageButtonBMH, eax
-invoke Get_Handle_To_Mask_Bitmap, ImageButtonBMH, 0ffffffh		;white
+invoke Get_Handle_To_Mask_Bitmap, ImageButtonBMH, 0ffffffh	;white
 mov ImageButtonMaskBMH, eax
 
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, COLORSBUTTON
 mov ColorsButtonBMH, eax
-invoke Get_Handle_To_Mask_Bitmap, ColorsButtonBMH, 0ffffffh		;white
+invoke Get_Handle_To_Mask_Bitmap, ColorsButtonBMH, 0ffffffh	;white
 mov ColorsButtonMaskBMH, eax
 
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, TRACKBUTTON
 mov TrackButtonBMH, eax
-invoke Get_Handle_To_Mask_Bitmap, TrackButtonBMH, 0ffffffh		;white
+invoke Get_Handle_To_Mask_Bitmap, TrackButtonBMH, 0ffffffh	;white
 mov TrackButtonMaskBMH, eax
 
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, SFXBUTTON
 mov SFXButtonBMH, eax
-invoke Get_Handle_To_Mask_Bitmap, SFXButtonBMH, 0ffffffh		;white
+invoke Get_Handle_To_Mask_Bitmap, SFXButtonBMH, 0ffffffh	;white
 mov SFXButtonMaskBMH, eax
 
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, RESIZEBUTTON
 mov ResizeButtonBMH, eax
-invoke Get_Handle_To_Mask_Bitmap, ResizeButtonBMH, 0ffffffh		;white
+invoke Get_Handle_To_Mask_Bitmap, ResizeButtonBMH, 0ffffffh	;white
 mov ResizeButtonMaskBMH, eax
 
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, VOLUMEBAR
 mov VolumeBarBMH, eax
-invoke Get_Handle_To_Mask_Bitmap, VolumeBarBMH, 0ffffffh		;white
+invoke Get_Handle_To_Mask_Bitmap, VolumeBarBMH, 0ffffffh	;white
 mov VolumeBarMaskBMH, eax
 
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, SELECTOR
 mov SelectorBMH, eax
-invoke Get_Handle_To_Mask_Bitmap, SelectorBMH, 0ffffffh		;white
+invoke Get_Handle_To_Mask_Bitmap, SelectorBMH, 0ffffffh	;white
 mov SelectorMaskBMH, eax
 
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, MUTEBUTTON
 mov MuteButtonBMH, eax
-invoke Get_Handle_To_Mask_Bitmap, MuteButtonBMH, 0ffffffh		;white
+invoke Get_Handle_To_Mask_Bitmap, MuteButtonBMH, 0ffffffh	;white
 mov MuteButtonMaskBMH, eax
+
+invoke GetModuleHandle, NULL
+invoke LoadBitmap, eax, ONBUTTON
+mov OnButtonBMH, eax
+invoke Get_Handle_To_Mask_Bitmap, OnButtonBMH, 0ffffffh	;white
+mov OnButtonMaskBMH, eax
+
+invoke GetModuleHandle, NULL
+invoke LoadBitmap, eax, OFFBUTTON
+mov OffButtonBMH, eax
+invoke Get_Handle_To_Mask_Bitmap, OffButtonBMH, 0ffffffh	;white
+mov OffButtonMaskBMH, eax
+
+invoke GetModuleHandle, NULL
+invoke LoadBitmap, eax, VOLUMEBUTTON
+mov VolumeButtonBMH, eax
+invoke Get_Handle_To_Mask_Bitmap, VolumeButtonBMH, 0ffffffh	;white
+mov VolumeButtonMaskBMH, eax
+
+invoke GetModuleHandle, NULL
+invoke LoadBitmap, eax, TIE
+mov TieBMH, eax
+invoke Get_Handle_To_Mask_Bitmap, TieBMH, 0ffffffh	;white
+mov TieMaskBMH, eax
+
+invoke GetModuleHandle, NULL
+invoke LoadBitmap, eax, P1WINS
+mov P1WinsBMH, eax
+invoke Get_Handle_To_Mask_Bitmap, P1WinsBMH, 0ffffffh	;white
+mov P1WinsMaskBMH, eax
+
+invoke GetModuleHandle, NULL
+invoke LoadBitmap, eax, P2WINS
+mov P2WinsBMH, eax
+invoke Get_Handle_To_Mask_Bitmap, P2WinsBMH, 0ffffffh	;white
+mov P2WinsMaskBMH, eax
 
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, COUNTGO
 mov CountGoBMH, eax
-invoke Get_Handle_To_Mask_Bitmap, CountGoBMH, 0ffffffh		;white
+invoke Get_Handle_To_Mask_Bitmap, CountGoBMH, 0ffffffh	;white
 mov CountGoMaskBMH, eax
 
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, COUNT1
 mov Count1BMH, eax
-invoke Get_Handle_To_Mask_Bitmap, Count1BMH, 0ffffffh		;white
+invoke Get_Handle_To_Mask_Bitmap, Count1BMH, 0ffffffh	;white
 mov Count1MaskBMH, eax
 
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, COUNT2
 mov Count2BMH, eax
-invoke Get_Handle_To_Mask_Bitmap, Count2BMH, 0ffffffh		;white
+invoke Get_Handle_To_Mask_Bitmap, Count2BMH, 0ffffffh	;white
 mov Count2MaskBMH, eax
 
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, COUNT3
 mov Count3BMH, eax
-invoke Get_Handle_To_Mask_Bitmap, Count3BMH, 0ffffffh		;white
+invoke Get_Handle_To_Mask_Bitmap, Count3BMH, 0ffffffh	;white
 mov Count3MaskBMH, eax
 
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, COUNT4
 mov Count4BMH, eax
-invoke Get_Handle_To_Mask_Bitmap, Count4BMH, 0ffffffh		;white
+invoke Get_Handle_To_Mask_Bitmap, Count4BMH, 0ffffffh	;white
 mov Count4MaskBMH, eax
 
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, COUNT5
 mov Count5BMH, eax
-invoke Get_Handle_To_Mask_Bitmap, Count5BMH, 0ffffffh		;white
+invoke Get_Handle_To_Mask_Bitmap, Count5BMH, 0ffffffh	;white
 mov Count5MaskBMH, eax
 
 mov eax, Color1
@@ -3035,7 +3241,7 @@ and eax, 07f7f7fh
 shl eax, 1
 mov Lighter2, eax
 
-invoke ShowWindow, hWnd, SW_SHOW ;Show it 
+invoke ShowWindow, hWnd, SW_SHOW ;Show it
 invoke SetTimer, hWnd, MAIN_TIMER_ID, 20, NULL ;Set the repaint timer
 
 msgLoop:
