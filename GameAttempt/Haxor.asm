@@ -31,7 +31,6 @@ UP	equ 4
 STOP equ 5
 
 FACING1 equ 3
-
 FACING2 equ 1
 VERTICAL1 equ 0
 HORIZONTAL1 equ 1
@@ -41,10 +40,8 @@ HORIZONTAL2 equ 1
 GAME equ 1
 SETTINGS equ 2
 MAINMENU equ 3
-COLOR1 equ 4
-COLOR1CHOSE equ 5
-COLOR2 equ 6
-COLOR2CHOSE equ 7
+COLOR equ 4
+UNMUTEBUTTON equ 5
 PAUSING equ 8
 ENDING equ 9
 EXITING equ 10
@@ -143,10 +140,7 @@ SettingsBMH HBITMAP ?
 MainMenuBMH HBITMAP ?
 PausingBMH HBITMAP ?
 EndingBMH HBITMAP ?
-Color1BMH HBITMAP ?
-Color1ChoseBMH HBITMAP ?
-Color2BMH HBITMAP ?
-Color2ChoseBMH HBITMAP ?
+ColorBMH HBITMAP ?
 ExitingBMH HBITMAP ?
 HelpingBMH HBITMAP ?
 CreditsBMH HBITMAP ?
@@ -174,6 +168,8 @@ ExitButtonBMH HBITMAP ?
 ExitButtonMaskBMH HBITMAP ?
 MuteButtonBMH HBITMAP ?
 MuteButtonMaskBMH HBITMAP ?
+UnmuteButtonBMH HBITMAP ?
+UnmuteButtonMaskBMH HBITMAP ?
 MusicButtonBMH HBITMAP ?
 MusicButtonMaskBMH HBITMAP ?
 SFXButtonBMH HBITMAP ?
@@ -246,10 +242,13 @@ Selected DWORD 1
 Image DWORD 1
 
 SelectorX DWORD ?
-Volume DWORD ?
+Volume DWORD 0FFFFh
 BackupVolume DWORD ?
 SFX DWORD 1
+BackupSFX DWORD ?
 Music DWORD 1
+BackupMusic DWORD ?
+Track DWORD 1
 
 Game1BMH HBITMAP ?
 Game2BMH HBITMAP ?
@@ -325,15 +324,78 @@ stopTurn BYTE "stop Turn.mp3",0
 
 StopMusic PROC
 ;--------------------------------------------------------------------------------
-	invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
+	cmp Track, 1
+	je stoptrack1
+	cmp Track, 2
+	je stoptrack2
+	cmp Track, 3
+	je stoptrack3
+	cmp Track, 4
+	je stoptrack4
+	cmp Track, 5
+	je stoptrack5
+	ret
+stoptrack1:
 	invoke mciSendString, offset stopTheSonOfFlynn, NULL, NULL, NULL
+	ret
+stoptrack2:
 	invoke mciSendString, offset stopTheGameHasChanged, NULL, NULL, NULL
-	invoke mciSendString, offset stopRinzler, NULL, NULL, NULL
+	ret
+stoptrack3:
 	invoke mciSendString, offset stopOutlands, NULL, NULL, NULL
+	ret
+stoptrack4:
+	invoke mciSendString, offset stopRinzler, NULL, NULL, NULL
+	ret
+stoptrack5:
 	invoke mciSendString, offset stopEndOfLine, NULL, NULL, NULL
 	ret
 ;================================================================================
 StopMusic ENDP
+
+PlayMusic PROC
+;--------------------------------------------------------------------------------
+	cmp Track, 1
+	je playtrack1
+	cmp Track, 2
+	je playtrack2
+	cmp Track, 3
+	je playtrack3
+	cmp Track, 4
+	je playtrack4
+	cmp Track, 5
+	je playtrack5
+	ret
+playtrack1:
+	invoke mciSendString, offset playTheSonOfFlynn, NULL, NULL, NULL
+	ret
+playtrack2:
+	invoke mciSendString, offset playTheGameHasChanged, NULL, NULL, NULL
+	ret
+playtrack3:
+	invoke mciSendString, offset playOutlands, NULL, NULL, NULL
+	ret
+playtrack4:
+	invoke mciSendString, offset playRinzler, NULL, NULL, NULL
+	ret
+playtrack5:
+	invoke mciSendString, offset playEndOfLine, NULL, NULL, NULL
+	ret
+;================================================================================
+PlayMusic ENDP
+
+ChangeTrack PROC
+;--------------------------------------------------------------------------------
+	inc Track
+	cmp Track, 5
+	jg looptrack
+	ret
+looptrack:
+	mov eax, 1
+	mov Track, eax
+	ret
+;================================================================================
+ChangeTrack ENDP
 
 ResizeWindow PROC, newwidth:DWORD, newheight:DWORD
 ;--------------------------------------------------------------------------------
@@ -623,14 +685,8 @@ DrawBG PROC, mystatus:DWORD, myrect:RECT, hdc:HDC, myhWnd:HWND
 	je pausingdraw
 	cmp mystatus, ENDING
 	je endingdraw
-	cmp mystatus, COLOR1
-	je color1draw
-	cmp mystatus, COLOR1CHOSE
-	je color1chosedraw
-	cmp mystatus, COLOR2
-	je color2draw
-	cmp mystatus, COLOR2CHOSE
-	je color2chosedraw
+	cmp mystatus, COLOR
+	je colordraw
 	cmp mystatus, EXITING
 	je exitingdraw
 	cmp mystatus, HELPING
@@ -933,20 +989,18 @@ endinggifloop:
 	mov Frame, eax
 	ret
 
-color1draw:
+colordraw:
 	ret
-color1chosedraw:
-	ret
-color2draw:
-	ret
-color2chosedraw:
-	ret
+
 exitingdraw:
 	ret
+
 helpingdraw:
 	ret
+
 creditsdraw:
 	ret
+
 audiodraw:		;volume, music, sfx, mute, track, back
 	mov eax, Frame
 	dec eax
@@ -989,7 +1043,6 @@ nextaudio:
 	invoke DrawImage_WithMask, hdc, VolumeBarBMH, VolumeBarMaskBMH, W2Eighth, H2Tenth, 0, 0, W4Eighth, H1Tenth, 1500, 200
 	invoke DrawImage_WithMask, hdc, MusicButtonBMH, MusicButtonMaskBMH, W1Eighth, H3Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 	invoke DrawImage_WithMask, hdc, SFXButtonBMH, SFXButtonMaskBMH, W1Eighth, H4Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
-	invoke DrawImage_WithMask, hdc, MuteButtonBMH, MuteButtonMaskBMH, W2Eighth, H5Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 	invoke DrawImage_WithMask, hdc, TrackButtonBMH, TrackButtonMaskBMH, W2Eighth, H6Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 	invoke DrawImage_WithMask, hdc, BackButtonBMH, BackButtonMaskBMH, W2Eighth, H7Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 	invoke DrawImage_WithMask, hdc, SmallHighlightBMH, SmallHighlightMaskBMH, W5Eighth, H3Tenth, 0, 0, W2Eighth, H1Tenth, 913, 346
@@ -1016,10 +1069,21 @@ audiosfxcheck:
 	ret
 audiosfxon:
 	invoke DrawImage_WithMask, hdc, OnButtonBMH, OnButtonMaskBMH, W5Eighth, H4Tenth, 0, 0, W2Eighth, H1Tenth, 913, 346
-	jmp audiogifcheck
+	jmp audiomutecheck
 audiosfxoff:
 	invoke DrawImage_WithMask, hdc, OffButtonBMH, OffButtonMaskBMH, W5Eighth, H4Tenth, 0, 0, W2Eighth, H1Tenth, 913, 346
+	jmp audiomutecheck
+audiomutecheck:
+	mov eax, Music
+	mov ebx, SFX
+	add eax, ebx
+	cmp eax, 0
+	je audiomuted
+audionotmuted:
+	invoke DrawImage_WithMask, hdc, MuteButtonBMH, MuteButtonMaskBMH, W2Eighth, H5Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 	jmp audiogifcheck
+audiomuted:
+	invoke DrawImage_WithMask, hdc, UnmuteButtonBMH, UnmuteButtonMaskBMH, W2Eighth, H5Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 audiogifcheck:
 	invoke GetTickCount
 	mov NowFrameTime, eax
@@ -1086,7 +1150,7 @@ graphicsgifdraw:
 	mov eax, Frame
 	inc eax
 	mov Frame, eax
-	cmp Frame, 36
+	cmp Frame, 40
 	jg graphicsgifloop
 	ret
 graphicsgifloop:
@@ -1460,7 +1524,11 @@ newgame:
 	mov eax, GAME
 	mov status, eax
 	invoke Restart
-	;invoke mciSendString, offset playDerezzed, NULL, NULL, NULL
+	invoke StopMusic
+	cmp Music, 0
+	je newgamenomusic
+	invoke mciSendString, offset playDerezzed, NULL, NULL, NULL
+newgamenomusic:
 	ret
 
 settings:
@@ -1509,6 +1577,11 @@ resume:
 	;mov laststatus, eax
 	mov eax, GAME
 	mov status, eax
+	invoke StopMusic
+	cmp Music, 0
+	je resumenomusic
+	invoke mciSendString, offset resumeDerezzed, NULL, NULL, NULL
+resumenomusic:
 	ret
 
 credits:
@@ -1527,6 +1600,12 @@ pausing:
 	;mov laststatus, eax
 	mov eax, PAUSING
 	mov status, eax
+	invoke mciSendString, offset pauseDerezzed, NULL, NULL, NULL
+	cmp Music, 0
+	je pausingnomusic
+	invoke PlayMusic
+pausingnomusic:
+	ret
 	ret
 
 backing:
@@ -1548,17 +1627,74 @@ audio:
 	ret
 
 mute:
+	cmp Volume, 0000h
+	je realunmute
+	jmp realmute
+realunmute:
+	mov eax, 0
+	mov ebx, BackupVolume
+	mov Volume, ebx
+	mov BackupVolume, eax
+	mov eax, BackupMusic
+	mov ebx, BackupSFX
+	add eax, ebx
+	cmp eax, 0
+	jg partialunmute
+fullunmute:
+	mov eax, 1
+	mov BackupMusic, eax
+	mov BackupSFX, eax
+partialunmute:
+	mov ebx, BackupMusic
+	mov Music, ebx
+	mov BackupMusic, eax
+	mov ebx, BackupSFX
+	mov SFX, ebx
+	mov BackupSFX, eax
+	invoke waveOutSetVolume, NULL, Volume
+	cmp Music, 0
+	je unmutenomusic
+	invoke PlayMusic
+unmutenomusic:
+	ret
+realmute:
+	mov eax, Volume
+	mov ebx, 0
+	mov BackupVolume, eax
+	mov Volume, ebx
+	mov eax, Music
+	mov BackupMusic, eax
+	mov Music, ebx
+	mov eax, SFX
+	mov BackupSFX, eax
+	mov SFX, ebx
+	invoke waveOutSetVolume, NULL, Volume
 	ret
 
 track:
+	invoke StopMusic
+	invoke ChangeTrack
+	cmp Music, 0
+	je tracknomusic
+	invoke PlayMusic
+tracknomusic:
 	ret
 
 colors:
 	ret
 
 music:
+	mov eax, Music
+	mov BackupMusic, eax
 	xor Music, 1
-	
+	cmp Music, 1
+	je realmusic
+	jmp realnomusic
+realmusic:
+	invoke PlayMusic
+	ret
+realnomusic:
+	invoke StopMusic
 	ret
 
 sfx:
@@ -2669,28 +2805,32 @@ next1:
 moveleft1:
 	mov eax, Speed
 	mov ebx, MyD
-	idiv ebx
+	xor edx, edx
+	div ebx
 	sub P1.x, eax
 	jmp checkalive1
  
 moveright1:
 	mov eax, Speed
 	mov ebx, MyD
-	idiv ebx
+	xor edx, edx
+	div ebx
 	add P1.x, eax
 	jmp checkalive1
  
 movedown1:
 	mov eax, Speed
 	mov ebx, MyD
-	idiv ebx
+	xor edx, edx
+	div ebx
 	add P1.y, eax
 	jmp checkalive1
  
 moveup1:
 	mov eax, Speed
 	mov ebx, MyD
-	idiv ebx
+	xor edx, edx
+	div ebx
 	sub P1.y, eax
 	jmp checkalive1
 
@@ -2730,6 +2870,7 @@ nottied1:
 
 dead1:
 	popa
+	invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
 	invoke mciSendString, offset playScream, NULL, NULL, NULL
 	mov eax, status
 	mov laststatus, eax
@@ -2737,6 +2878,10 @@ dead1:
 	mov status, eax
 	mov eax, 2
 	mov Winner, eax
+	cmp Music, 0
+	je dead1nomusic
+	invoke PlayMusic
+dead1nomusic:
 	ret
 
 notdead1:
@@ -2791,28 +2936,32 @@ next2:
 moveleft2:
 	mov eax, Speed
 	mov ebx, MyD
-	idiv ebx
+	xor edx, edx
+	div ebx
 	sub P2.x, eax
 	jmp checkalive2
  
 moveright2:
 	mov eax, Speed
 	mov ebx, MyD
-	idiv ebx
+	xor edx, edx
+	div ebx
 	add P2.x, eax
 	jmp checkalive2
  
 movedown2:
 	mov eax, Speed
 	mov ebx, MyD
-	idiv ebx
+	xor edx, edx
+	div ebx
 	add P2.y, eax
 	jmp checkalive2
  
 moveup2:
 	mov eax, Speed
 	mov ebx, MyD
-	idiv ebx
+	xor edx, edx
+	div ebx
 	sub P2.y, eax
 	jmp checkalive2
 
@@ -2853,6 +3002,7 @@ nottied2:
 
 dead2:
 	popa
+	invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
 	invoke mciSendString, offset playScream, NULL, NULL, NULL
 	mov eax, status
 	mov laststatus, eax
@@ -2860,6 +3010,10 @@ dead2:
 	mov status, eax
 	mov eax, 1
 	mov Winner, eax
+	cmp Music, 0
+	je dead2nomusic
+	invoke PlayMusic
+dead2nomusic:
 	ret
  
 notdead2:
@@ -2895,6 +3049,7 @@ tied:
 	mov status, eax
 	mov eax, 0
 	mov Winner, eax
+	invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
 	ret
 
 timing:
@@ -2930,8 +3085,11 @@ main PROC
 LOCAL wndcls:WNDCLASSA
 LOCAL msg:MSG
 invoke Scale, WinWidth
+invoke waveOutSetVolume, NULL, 0
 invoke mciSendString, offset playBoost, NULL, NULL, NULL
 invoke mciSendString, offset playTurn, NULL, NULL, NULL
+invoke waveOutSetVolume, NULL, Volume
+invoke PlayMusic
 invoke RtlZeroMemory, addr wndcls, SIZEOF wndcls ;Empty the window class
 mov eax, offset ClassName
 mov wndcls.lpszClassName, eax
@@ -2986,18 +3144,6 @@ invoke LoadBitmap, eax, PAUSING
 mov PausingBMH, eax
 
 invoke GetModuleHandle, NULL
-invoke LoadBitmap, eax, COLOR1
-mov Color1BMH, eax
-
-invoke GetModuleHandle, NULL
-invoke LoadBitmap, eax, COLOR1CHOSE
-mov Color1ChoseBMH, eax
-
-invoke GetModuleHandle, NULL
-invoke LoadBitmap, eax, COLOR2
-mov Color2BMH, eax
-
-invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, EXITING
 mov ExitingBMH, eax
 
@@ -3016,6 +3162,10 @@ mov AudioBMH, eax
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, GRAPHICS
 mov GraphicsBMH, eax
+
+invoke GetModuleHandle, NULL
+invoke LoadBitmap, eax, COLOR
+mov ColorBMH, eax
 
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, NEWGAMEBUTTON
@@ -3142,6 +3292,12 @@ invoke LoadBitmap, eax, MUTEBUTTON
 mov MuteButtonBMH, eax
 invoke Get_Handle_To_Mask_Bitmap, MuteButtonBMH, 0ffffffh	;white
 mov MuteButtonMaskBMH, eax
+
+invoke GetModuleHandle, NULL
+invoke LoadBitmap, eax, UNMUTEBUTTON
+mov UnmuteButtonBMH, eax
+invoke Get_Handle_To_Mask_Bitmap, UnmuteButtonBMH, 0ffffffh	;white
+mov UnmuteButtonMaskBMH, eax
 
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, ONBUTTON
