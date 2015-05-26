@@ -3,6 +3,8 @@
 #define IDB_START 3
 #define IDB_COLOR 4
 #define IDB_UNMUTEBUTTON 5
+#define IDB_LOCALGAME 6
+#define IDB_ONLINEGAME 7
 #define IDB_PAUSING 8
 #define IDB_ENDING 9
 #define IDB_EXITING 10
@@ -49,3 +51,6 @@
 #define IDB_TIE 60
 #define IDB_P1WINS 61
 #define IDB_P2WINS 62
+#define IDB_SINGLEGAME 63
+#define IDB_WIN 64
+#define IDB_LOSE 65

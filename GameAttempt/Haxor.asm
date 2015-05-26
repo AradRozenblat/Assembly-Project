@@ -20,7 +20,10 @@ includelib \masm32\lib\shell32.lib
 includelib \masm32\lib\oleaut32.lib
 includelib \masm32\lib\ole32.lib
 includelib \masm32\lib\msvcrt.lib
- 
+include \masm32\include\msvcrt.inc
+include \masm32\include\Ws2_32.inc
+includelib \masm32\lib\Ws2_32.lib
+
 .const
 MAIN_TIMER_ID equ 0
 
@@ -42,6 +45,8 @@ SETTINGS equ 2
 MAINMENU equ 3
 COLOR equ 4
 UNMUTEBUTTON equ 5
+LOCALGAME equ 6
+ONLINEGAME equ 7
 PAUSING equ 8
 ENDING equ 9
 EXITING equ 10
@@ -90,6 +95,9 @@ SMALLHIGHLIGHT equ 59
 TIE equ 60
 P1WINS equ 61
 P2WINS equ 62
+SINGLEGAME equ 63
+WIN equ 64
+LOSE equ 65
 
 REG1 equ 1
 DARK1 equ 3
@@ -103,11 +111,14 @@ BOOSTS2 equ 3
 
 WINWIDTH equ 1000
 
+WM_SOCKET equ WM_USER+100
+TILES equ 20
+
 .data
 
 Player STRUCT
 ;>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-	id dd ?
+	id db ?
 	color dd ?
 	x dd ?
 	y dd ?
@@ -132,6 +143,16 @@ Lighter1 DWORD ?
 Lighter2 DWORD ?
 P1 Player <1, Color1, ?, ?, ?, FACING1, VERTICAL1, HORIZONTAL1, BOOSTS1>
 P2 Player <2, Color2, ?, ?, ?, FACING2, VERTICAL2, HORIZONTAL2, BOOSTS2>
+Me Player <?, ?, ?, ?, ?, ?, ?, ?, ?>
+MyLastKey DWORD ?
+MyNowKey DWORD ?
+MyLastKeyTime DWORD ?
+MyNowKeyTime DWORD ?
+MyBoostTime DWORD ?
+MyBoostTiles DWORD ?
+MySlowTime DWORD ?
+MyLastMoveTime DWORD ?
+
 ClassName DB "TheClass", 0
 windowTitle DB "TRON: REASSEMBLED", 0
 backupecx	DWORD	?
@@ -146,6 +167,7 @@ HelpingBMH HBITMAP ?
 CreditsBMH HBITMAP ?
 AudioBMH HBITMAP ?
 GraphicsBMH HBITMAP ?
+GameBMH HBITMAP ?
 NewGameButtonBMH HBITMAP ?
 NewGameButtonMaskBMH HBITMAP ?
 MainMenuButtonBMH HBITMAP ?
@@ -195,12 +217,22 @@ OnButtonBMH HBITMAP ?
 OnButtonMaskBMH HBITMAP ?
 OffButtonBMH HBITMAP ?
 OffButtonMaskBMH HBITMAP ?
+LocalButtonBMH HBITMAP ?
+LocalButtonMaskBMH HBITMAP ?
+OnlineButtonBMH HBITMAP ?
+OnlineButtonMaskBMH HBITMAP ?
+SingleButtonBMH HBITMAP ?
+SingleButtonMaskBMH HBITMAP ?
 P1WinsBMH HBITMAP ?
 P1WinsMaskBMH HBITMAP ?
 P2WinsBMH HBITMAP ?
 P2WinsMaskBMH HBITMAP ?
 TieBMH HBITMAP ?
 TieMaskBMH HBITMAP ?
+YouLoseBMH HBITMAP ?
+YouLoseMaskBMH HBITMAP ?
+YouWinBMH HBITMAP ?
+YouWinMaskBMH HBITMAP ?
 Count1BMH HBITMAP ?
 Count1MaskBMH HBITMAP ?
 Count2BMH HBITMAP ?
@@ -315,12 +347,53 @@ playEndOfLine BYTE "play EndOfLine.mp3 repeat",0
 pauseEndOfLine BYTE "pause EndOfLine.mp3",0
 resumeEndOfLine BYTE "resume EndOfLine.mp3",0
 stopEndOfLine BYTE "stop EndOfLine.mp3",0
-playScream BYTE "play Scream.mp3",0
+playApplause BYTE "play Applause.mp3",0
+stopApplause BYTE "stop Applause.mp3",0
 playBoost BYTE "play Boost.mp3",0
+stopBoost BYTE "stop Boost.mp3",0
 playTurn BYTE "play Turn.mp3",0
 stopTurn BYTE "stop Turn.mp3",0
+playCountdown BYTE "play Countdown.mp3",0
+stopCountdown BYTE "stop Countdown.mp3",0
+
+laststeps DB TILES*3 dup (-1)
+sin sockaddr_in <>
+clientsin sockaddr_in <>
+IPAddress db "212.179.222.94",0 
+Port dd 30001	
+text db "placeholder",0
+textoffset DWORD ?
+pleaseconnectus db "please connect us!!!",0
+doyouwanttoconnect db "Yes do you want to connect with your friend?",0
+yesiamsure db "yes i am sure",0
+get_ready_for_ip db "Get ready for IP.",0
+expecting_IP db FALSE
+expecting_PORT db FALSE
+wsadata WSADATA <>
+clientip db 20 dup(0)
+clientport dd 0
+infobuffer DB (TILES*3) dup(-1)
+buffer_for_sock db 1024 dup(0)
+available_data db 100 dup(0)	; the amount of data available from the socket 
+actual_data_read db 100 dup(0)	; the actual amount of data read from the socket 
+connected_to_peer db FALSE
+sock DWORD ?
+captionyesiwanttoconnect db 'yes i am sure',0
 
 .code
+
+sendLocation PROC, uselessparameter:DWORD
+;----------------------------------------------------------------------------
+again:
+	mov ebx, offset laststeps
+	mov edx, offset infobuffer
+	invoke RtlMoveMemory, offset infobuffer, offset laststeps, sizeof laststeps
+	invoke sendto, sock, offset infobuffer, sizeof infobuffer, 0, offset clientsin, sizeof clientsin
+	invoke Sleep,10
+	jmp again
+	ret
+;============================================================================
+sendLocation ENDP
 
 StopMusic PROC
 ;--------------------------------------------------------------------------------
@@ -352,6 +425,16 @@ stoptrack5:
 	ret
 ;================================================================================
 StopMusic ENDP
+
+StopSFX PROC
+;--------------------------------------------------------------------------------
+	invoke mciSendString, offset stopApplause, NULL, NULL, NULL
+	invoke mciSendString, offset stopCountdown, NULL, NULL, NULL
+	invoke mciSendString, offset stopBoost, NULL, NULL, NULL
+	invoke Sleep, 1500
+	ret
+;================================================================================
+StopSFX ENDP
 
 PlayMusic PROC
 ;--------------------------------------------------------------------------------
@@ -610,7 +693,7 @@ image6:
 ;================================================================================
 ChangeImage ENDP
 
-DrawImage_WithMask PROC, hdc:HDC, img:HBITMAP, maskedimg:HBITMAP, 	destx:DWORD, desty:DWORD, srcx:DWORD, srcy:DWORD, destw:DWORD, desth:DWORD, srcw:DWORD, srch:DWORD
+DrawImage_WithMask PROC, hdc:HDC, img:HBITMAP, maskedimg:HBITMAP, destx:DWORD, desty:DWORD, srcx:DWORD, srcy:DWORD, destw:DWORD, desth:DWORD, srcw:DWORD, srch:DWORD
 ;--------------------------------------------------------------------------------
 local hdcMem:HDC
 local HOld:HDC
@@ -677,6 +760,12 @@ DrawBG PROC, mystatus:DWORD, myrect:RECT, hdc:HDC, myhWnd:HWND
 
 	cmp mystatus, GAME
 	je gamedraw
+	cmp mystatus, LOCALGAME
+	je localdraw
+	cmp mystatus, ONLINEGAME
+	je onlinedraw
+	cmp mystatus, SINGLEGAME
+	je singledraw
 	cmp mystatus, MAINMENU
 	je mainmenudraw
 	cmp mystatus, SETTINGS
@@ -700,48 +789,170 @@ DrawBG PROC, mystatus:DWORD, myrect:RECT, hdc:HDC, myhWnd:HWND
 	invoke ExitProcess, 0
 
 gamedraw:
-	invoke DrawImage, hdc, CurrentBMH, 0, 0, 0, 0, WinWidth, WinHeight, 1000, 750
-	cmp CountDown, 0		;-1
-	je nocount
-	;cmp CountDown, 0
-	;je countgo
-	cmp CountDown, 1
-	je count1
-	cmp CountDown, 2
-	je count2
-	cmp CountDown, 3
-	je count3
-	cmp CountDown, 4
-	je count4
-	cmp CountDown, 5
-	je count5
+	mov eax, Frame
+	dec eax
+	imul eax, 1000
+	invoke DrawImage, hdc, GameBMH, 0, 0, eax, 0, WinWidth, WinHeight, 1000, 750
+	cmp Selected, 1
+	je gamelocalselect
+	cmp Selected, 2
+	je gameonlineselect
+	cmp Selected ,3
+	je gamesingleselect
+	cmp Selected, 4
+	je gamebackselect
+	ret
+	
+gamelocalselect:
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W2Eighth, H1Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
+	jmp nextgame
+gameonlineselect:
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W2Eighth, H2Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
+	jmp nextgame
+gamesingleselect:
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W2Eighth, H3Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
+	jmp nextgame
+gamebackselect:
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W2Eighth, H4Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
+	jmp nextgame
+
+nextgame:
+	invoke DrawImage_WithMask, hdc, LocalButtonBMH, LocalButtonMaskBMH, W2Eighth, H1Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, OnlineButtonBMH, OnlineButtonMaskBMH,  W2Eighth, H2Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, SingleButtonBMH, SingleButtonMaskBMH,  W2Eighth, H3Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, BackButtonBMH, BackButtonMaskBMH,  W2Eighth, H4Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
+	invoke GetTickCount
+	mov NowFrameTime, eax
+	sub eax, LastFrameTime
+	cmp eax, 60
+	jge gamegifdraw
+	ret
+gamegifdraw:
+	mov eax, NowFrameTime
+	mov LastFrameTime, eax
+	mov eax, Frame
+	inc eax
+	mov Frame, eax
+	cmp Frame, 40
+	jg gamegifloop
+	ret
+gamegifloop:
+	mov eax, 1
+	mov Frame, eax
 	ret
 
-countgo:
+localdraw:
+	invoke DrawImage, hdc, CurrentBMH, 0, 0, 0, 0, WinWidth, WinHeight, 1000, 750
+	cmp CountDown, 0	;-1
+	je localnocount
+	;cmp CountDown, 0
+	;je localcountgo
+	cmp CountDown, 1
+	je localcount1
+	cmp CountDown, 2
+	je localcount2
+	cmp CountDown, 3
+	je localcount3
+	cmp CountDown, 4
+	je localcount4
+	cmp CountDown, 5
+	je localcount5
+	ret
+localcountgo:
 	invoke DrawImage_WithMask, hdc, CountGoBMH, CountGoMaskBMH, W2Eighth, H1Quarter, 0, 0, W4Eighth, H2Quarter, 679, 346
 	ret
-
-count1:
+localcount1:
 	invoke DrawImage_WithMask, hdc, Count1BMH, Count1MaskBMH, W2Eighth, H1Quarter, 0, 0, W4Eighth, H2Quarter, 346, 346
 	ret
-
-count2:
+localcount2:
 	invoke DrawImage_WithMask, hdc, Count2BMH, Count2MaskBMH, W2Eighth, H1Quarter, 0, 0, W4Eighth, H2Quarter, 346, 346
 	ret
-
-count3:
+localcount3:
 	invoke DrawImage_WithMask, hdc, Count3BMH, Count3MaskBMH, W2Eighth, H1Quarter, 0, 0, W4Eighth, H2Quarter, 346, 346
 	ret
-
-count4:
+localcount4:
 	invoke DrawImage_WithMask, hdc, Count4BMH, Count4MaskBMH, W2Eighth, H1Quarter, 0, 0, W4Eighth, H2Quarter, 346, 346
 	ret
-
-count5:
+localcount5:
 	invoke DrawImage_WithMask, hdc, Count5BMH, Count5MaskBMH, W2Eighth, H1Quarter, 0, 0, W4Eighth, H2Quarter, 346, 346
 	ret
+localnocount:
+	ret
 
-nocount:
+onlinedraw:
+	invoke DrawImage, hdc, CurrentBMH, 0, 0, 0, 0, WinWidth, WinHeight, 1000, 750
+	cmp CountDown, 0	;-1
+	je onlinenocount
+	;cmp CountDown, 0
+	;je onlinecountgo
+	cmp CountDown, 1
+	je onlinecount1
+	cmp CountDown, 2
+	je onlinecount2
+	cmp CountDown, 3
+	je onlinecount3
+	cmp CountDown, 4
+	je onlinecount4
+	cmp CountDown, 5
+	je onlinecount5
+	ret
+onlinecountgo:
+	invoke DrawImage_WithMask, hdc, CountGoBMH, CountGoMaskBMH, W2Eighth, H1Quarter, 0, 0, W4Eighth, H2Quarter, 679, 346
+	ret
+onlinecount1:
+	invoke DrawImage_WithMask, hdc, Count1BMH, Count1MaskBMH, W2Eighth, H1Quarter, 0, 0, W4Eighth, H2Quarter, 346, 346
+	ret
+onlinecount2:
+	invoke DrawImage_WithMask, hdc, Count2BMH, Count2MaskBMH, W2Eighth, H1Quarter, 0, 0, W4Eighth, H2Quarter, 346, 346
+	ret
+onlinecount3:
+	invoke DrawImage_WithMask, hdc, Count3BMH, Count3MaskBMH, W2Eighth, H1Quarter, 0, 0, W4Eighth, H2Quarter, 346, 346
+	ret
+onlinecount4:
+	invoke DrawImage_WithMask, hdc, Count4BMH, Count4MaskBMH, W2Eighth, H1Quarter, 0, 0, W4Eighth, H2Quarter, 346, 346
+	ret
+onlinecount5:
+	invoke DrawImage_WithMask, hdc, Count5BMH, Count5MaskBMH, W2Eighth, H1Quarter, 0, 0, W4Eighth, H2Quarter, 346, 346
+	ret
+onlinenocount:
+	ret
+
+singledraw:
+	invoke DrawImage, hdc, CurrentBMH, 0, 0, 0, 0, WinWidth, WinHeight, 1000, 750
+	cmp CountDown, 0	;-1
+	je singlenocount
+	;cmp CountDown, 0
+	;je singlecountgo
+	cmp CountDown, 1
+	je singlecount1
+	cmp CountDown, 2
+	je singlecount2
+	cmp CountDown, 3
+	je singlecount3
+	cmp CountDown, 4
+	je singlecount4
+	cmp CountDown, 5
+	je singlecount5
+	ret
+singlecountgo:
+	invoke DrawImage_WithMask, hdc, CountGoBMH, CountGoMaskBMH, W2Eighth, H1Quarter, 0, 0, W4Eighth, H2Quarter, 679, 346
+	ret
+singlecount1:
+	invoke DrawImage_WithMask, hdc, Count1BMH, Count1MaskBMH, W2Eighth, H1Quarter, 0, 0, W4Eighth, H2Quarter, 346, 346
+	ret
+singlecount2:
+	invoke DrawImage_WithMask, hdc, Count2BMH, Count2MaskBMH, W2Eighth, H1Quarter, 0, 0, W4Eighth, H2Quarter, 346, 346
+	ret
+singlecount3:
+	invoke DrawImage_WithMask, hdc, Count3BMH, Count3MaskBMH, W2Eighth, H1Quarter, 0, 0, W4Eighth, H2Quarter, 346, 346
+	ret
+singlecount4:
+	invoke DrawImage_WithMask, hdc, Count4BMH, Count4MaskBMH, W2Eighth, H1Quarter, 0, 0, W4Eighth, H2Quarter, 346, 346
+	ret
+singlecount5:
+	invoke DrawImage_WithMask, hdc, Count5BMH, Count5MaskBMH, W2Eighth, H1Quarter, 0, 0, W4Eighth, H2Quarter, 346, 346
+	ret
+singlenocount:
 	ret
 
 mainmenudraw:	;new game, settings, help, credits, exit
@@ -916,7 +1127,7 @@ pausinggifloop:
 	mov Frame, eax
 	ret
 
-endingdraw:		;new game, credits, mainmenu, exit
+endingdraw:	;new game, credits, mainmenu, exit
 	mov eax, Frame
 	dec eax
 	imul eax, 1000
@@ -953,20 +1164,30 @@ nextending:
 	invoke DrawImage_WithMask, hdc, CreditsButtonBMH, CreditsButtonMaskBMH, W2Eighth, H4Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 	invoke DrawImage_WithMask, hdc, MainMenuButtonBMH, MainMenuButtonMaskBMH,  W2Eighth, H5Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
 	invoke DrawImage_WithMask, hdc, ExitButtonBMH, ExitButtonMaskBMH,  W2Eighth, H6Tenth, 0, 0, W4Eighth, H1Tenth, 1813, 346
-	cmp Winner, 1
+	cmp Winner, P1WINS
 	je Win1
-	cmp Winner, 2
+	cmp Winner, P2WINS
 	je Win2
-	cmp Winner, 0
+	cmp Winner, TIE
 	je Tie
+	cmp Winner, LOSE
+	je Lose
+	cmp Winner, WIN
+	je Win
 Win1:
-	invoke DrawImage_WithMask, hdc, P1WinsBMH, P1WinsMaskBMH,  W1Eighth, H1Tenth, 0, 0, W6Eighth, H2Tenth, 2713, 679
+	invoke DrawImage_WithMask, hdc, P1WinsBMH, P1WinsMaskBMH, W1Eighth, H1Tenth, 0, 0, W6Eighth, H2Tenth, 2713, 679
 	jmp endinggif
 Win2:
-	invoke DrawImage_WithMask, hdc, P2WinsBMH, P2WinsMaskBMH,  W1Eighth, H1Tenth, 0, 0, W6Eighth, H2Tenth, 2713, 679
+	invoke DrawImage_WithMask, hdc, P2WinsBMH, P2WinsMaskBMH, W1Eighth, H1Tenth, 0, 0, W6Eighth, H2Tenth, 2713, 679
 	jmp endinggif
 Tie:
-	invoke DrawImage_WithMask, hdc, TieBMH, TieMaskBMH,  W1Eighth, H1Tenth, 0, 0, W6Eighth, H2Tenth, 2713, 679
+	invoke DrawImage_WithMask, hdc, TieBMH, TieMaskBMH, W1Eighth, H1Tenth, 0, 0, W6Eighth, H2Tenth, 2713, 679
+	jmp endinggif
+Lose:
+	invoke DrawImage_WithMask, hdc, YouLoseBMH, YouLoseMaskBMH, W1Eighth, H1Tenth, 0, 0, W6Eighth, H2Tenth, 2713, 679
+	jmp endinggif
+Win:
+	invoke DrawImage_WithMask, hdc, YouWinBMH, YouWinMaskBMH, W1Eighth, H1Tenth, 0, 0, W6Eighth, H2Tenth, 2713, 679
 	jmp endinggif
 endinggif:
 	invoke GetTickCount
@@ -1001,7 +1222,7 @@ helpingdraw:
 creditsdraw:
 	ret
 
-audiodraw:		;volume, music, sfx, mute, track, back
+audiodraw:	;volume, music, sfx, mute, track, back
 	mov eax, Frame
 	dec eax
 	imul eax, 1000
@@ -1167,12 +1388,12 @@ mov eax, x
 mov rectangle.left, eax
 add eax, w
 mov rectangle.right, eax
- 
+
 mov eax, y
 mov rectangle.top, eax
 add eax, h
 mov rectangle.bottom, eax
- 
+
 invoke FillRect, hdc, addr rectangle, brush
 ret
 ;============================================================================
@@ -1343,6 +1564,7 @@ checkoccupancy:
 returndead:
 	xor eax, eax
 	mov al, -99
+	ret
 ;============================================================================
 ReadGrid ENDP
 
@@ -1507,6 +1729,8 @@ local rect:RECT
 	je statuspainting
 	cmp message, WM_TIMER
 	je timing
+	cmp message, WM_SOCKET
+	je socketing
 	jmp OtherInstances
 
 noterasing:
@@ -1516,6 +1740,119 @@ noterasing:
 closing:
 	invoke ExitProcess, 0
 
+socketing:
+	cmp status, ONLINEGAME
+	je connecting
+	ret
+connecting:
+	mov eax,lParam 
+	.if ax==FD_CONNECT	; the low word of lParam contains the event code. 
+	shr eax,16	; the error code (if any) is in the high word of lParam 
+	.if ax==NULL 
+	;<no error occurs so proceed> 
+	.else 
+	invoke ExitProcess, 1
+	.endif 
+	.elseif	ax==FD_READ 
+	shr eax,16 
+	.if ax==NULL 
+	invoke ioctlsocket, sock, FIONREAD, addr available_data 
+	.if eax==NULL	
+	invoke recvfrom, sock, offset buffer_for_sock, 1024, 0,NULL,NULL
+
+	.if connected_to_peer == TRUE
+	mov ebx, offset buffer_for_sock
+	mov ecx, TILES
+firstupdate:
+	xor esi, esi
+	mov esi, [ebx]
+	shr esi, 24
+	inc ebx
+	xor edi, edi
+	mov edi, [ebx]
+	shr edi, 24
+	inc ebx
+	xor eax, eax
+	mov al, BYTE ptr[ebx]
+	inc ebx
+	invoke SetGrid, esi, edi, al
+loop firstupdate
+	ret
+	.endif
+
+	invoke crt_strcmp, offset buffer_for_sock, offset doyouwanttoconnect
+	cmp eax, 0
+	je sendyes
+	invoke crt_strcmp, offset buffer_for_sock, offset get_ready_for_ip
+	cmp eax, 0
+	je getreadyforip
+
+
+	.if expecting_PORT == TRUE
+	invoke crt_atoi, offset buffer_for_sock
+	mov clientport, eax
+	mov expecting_PORT, FALSE
+
+	
+	mov clientsin.sin_family, AF_INET 
+	invoke htons, clientport	; convert port number into network byte order first 
+	mov clientsin.sin_port,ax	; note that this member is a word-size param. 
+	invoke inet_addr, addr clientip	; convert the IP address into network byte order 
+	mov clientsin.sin_addr,eax 
+
+	invoke CreateThread, NULL, NULL, offset sendLocation,offset clientsin, NULL, NULL
+	mov connected_to_peer, TRUE
+	.endif
+
+	.if expecting_IP == TRUE
+	invoke crt_strcpy, offset clientip, offset buffer_for_sock
+	mov textoffset, offset clientip
+	mov expecting_PORT, TRUE
+	mov expecting_IP, FALSE
+	.endif	
+	mov ebx, offset buffer_for_sock
+	mov ecx, TILES
+secondupdate:
+	xor esi, esi
+	mov esi, [ebx]
+	shr esi, 24
+	inc ebx
+	xor edi, edi
+	mov edi, [ebx]
+	shr edi, 24
+	inc ebx
+	xor eax, eax
+	mov al, BYTE ptr[ebx]
+	inc ebx
+	invoke SetGrid, esi, edi, al
+loop secondupdate
+
+	.endif
+	;<no error occurs so proceed> 
+	.else 
+	invoke ExitProcess, 1
+	.endif 
+	.elseif   ax==FD_CLOSE 
+	shr eax,16 
+	.if ax==NULL 
+	;<no error occurs so proceed> 
+	.else 
+	invoke ExitProcess, 1
+	.endif 
+	.endif 
+	ret
+
+getreadyforip:
+	mov expecting_IP, TRUE
+	invoke MessageBox, hWnd, offset get_ready_for_ip, offset get_ready_for_ip, MB_OK
+	ret
+sendyes:
+	invoke crt_strlen, offset yesiamsure
+	invoke sendto, sock, offset yesiamsure, eax, 0, offset sin, sizeof sin
+	mov expecting_IP, TRUE
+	invoke MessageBox, hWnd, offset captionyesiwanttoconnect, offset captionyesiwanttoconnect, MB_OK
+	ret
+
 newgame:
 	mov eax, 1
 	mov Selected, eax
@@ -1523,12 +1860,88 @@ newgame:
 	;mov laststatus, eax
 	mov eax, GAME
 	mov status, eax
-	invoke Restart
+	ret
+
+localgame:
+	invoke StopSFX
 	invoke StopMusic
+	mov eax, 1
+	mov Selected, eax
+	;mov eax, status
+	;mov laststatus, eax
+	mov eax, LOCALGAME
+	mov status, eax
+	invoke Restart
+	cmp SFX, 0
+	je localnosfx
+	invoke mciSendString, offset playCountdown, NULL, NULL, NULL
+localnosfx:
+	ret
+
+onlinegame:
+	invoke StopSFX
+	invoke StopMusic
+	mov eax, 1
+	mov Selected, eax
+	;mov eax, status
+	;mov laststatus, eax
+	mov eax, ONLINEGAME
+	mov status, eax
+	invoke Restart
 	cmp Music, 0
-	je newgamenomusic
+	je onlinenomusic
 	invoke mciSendString, offset playDerezzed, NULL, NULL, NULL
-newgamenomusic:
+onlinenomusic:
+	cmp SFX, 0
+	je onlinenosfx
+	invoke mciSendString, offset playCountdown, NULL, NULL, NULL
+onlinenosfx:
+	mov textoffset, offset text
+	invoke WSAStartup, 101h,addr wsadata 
+	.if eax!=NULL 
+	invoke ExitProcess, 1;<An error occured> 
+	.else 
+	xor eax, eax ;<The initialization is successful. You may proceed with other winsock calls> 
+	.endif
+	
+	invoke socket,AF_INET,SOCK_DGRAM,0	; Create a stream socket for internet use 
+	.if eax!=INVALID_SOCKET 
+	mov sock,eax 
+	.else 
+	invoke ExitProcess, 1
+	.endif
+	invoke WSAAsyncSelect, sock, hWnd,WM_SOCKET, FD_CONNECT+FD_READ+FD_CLOSE 
+	; Register interest in connect, read and close events. 
+	.if eax==SOCKET_ERROR 
+	invoke WSAGetLastError
+	invoke ExitProcess, 1;<put your error handling routine here> 
+	.else 
+	xor eax, eax  ;........ 
+	.endif
+	mov sin.sin_family, AF_INET 
+	invoke htons, Port	; convert port number into network byte order first 
+	mov sin.sin_port,ax	; note that this member is a word-size param. 
+	invoke inet_addr, addr IPAddress	; convert the IP address into network byte order 
+	mov sin.sin_addr,eax 
+	invoke crt_strlen, offset pleaseconnectus
+	invoke sendto,sock, offset pleaseconnectus, eax, 0, offset sin, sizeof sin
+	invoke WSAGetLastError
+	ret
+
+singlegame:
+	invoke StopSFX
+	invoke StopMusic
+	mov eax, 1
+	mov Selected, eax
+	;mov eax, status
+	;mov laststatus, eax
+	mov eax, SINGLEGAME
+	mov status, eax
+	invoke Restart
+	cmp SFX, 0
+	je singlenosfx
+	invoke mciSendString, offset playCountdown, NULL, NULL, NULL
+singlenosfx:
 	ret
 
 settings:
@@ -1745,6 +2158,8 @@ statusmove:
 	mov eax, lParam
 	shr eax, 16
 	mov MouseY, eax
+	cmp status, GAME
+	je gamehover
 	cmp status, MAINMENU
 	je mainmenuhover
 	cmp status, SETTINGS
@@ -1758,6 +2173,39 @@ statusmove:
 	cmp status, GRAPHICS
 	je graphicshover
 	ret
+gamehover:	;local, online, single, back
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H1Tenth, W4Eighth, H1Tenth
+	cmp eax, 1
+	je gamelocalhover
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H2Tenth, W4Eighth, H1Tenth
+	cmp eax, 1
+	je gameonlinehover
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H3Tenth, W4Eighth, H1Tenth
+	cmp eax, 1
+	je gamesinglehover
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H4Tenth, W4Eighth, H1Tenth
+	cmp eax, 1
+	je gamebackhover
+	ret
+gamelocalhover:
+	mov eax, 1
+	mov Selected, eax
+	ret
+gameonlinehover:
+	mov eax, 2
+	mov Selected, eax
+	ret
+gamesinglehover:
+	mov eax, 3
+	mov Selected, eax
+	ret
+gamebackhover:
+	mov eax, 4
+	mov Selected, eax
+	ret
+gamenohover:
+	ret
+
 mainmenuhover:	;new game, settings, help, credits, exit
 	invoke CheckMouse, MouseX, MouseY, W2Eighth, H1Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
@@ -2003,6 +2451,8 @@ statusclick:
 	mov eax, lParam
 	shr eax, 16
 	mov MouseY, eax
+	cmp status, GAME
+	je gameclick
 	cmp status, MAINMENU
 	je mainmenuclick
 	cmp status, SETTINGS
@@ -2016,6 +2466,21 @@ statusclick:
 	cmp status, GRAPHICS
 	je graphicsclick
 	ret
+gameclick:	;local, online, back
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H1Tenth, W4Eighth, H1Tenth
+	cmp eax, 1
+	je localgame
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H2Tenth, W4Eighth, H1Tenth
+	cmp eax, 1
+	je onlinegame
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H3Tenth, W4Eighth, H1Tenth
+	cmp eax, 1
+	je singlegame
+	invoke CheckMouse, MouseX, MouseY, W2Eighth, H4Tenth, W4Eighth, H1Tenth
+	cmp eax, 1
+	je mainmenu
+	ret
+
 mainmenuclick:	;new game, settings, help, credits, exit
 	invoke CheckMouse, MouseX, MouseY, W2Eighth, H1Tenth, W4Eighth, H1Tenth
 	cmp eax, 1
@@ -2136,6 +2601,12 @@ graphicsclick:	;colors, image, resize, back
 statuskey:
 	cmp status, GAME
 	je gamemovement
+	cmp status, LOCALGAME
+	je localgamemovement
+	cmp status, ONLINEGAME
+	je onlinegamemovement
+	cmp status, SINGLEGAME
+	je singlegamemovement
 	cmp status, MAINMENU
 	je mainmenumovement
 	cmp status, SETTINGS
@@ -2295,9 +2766,9 @@ audiodownselect:
 	ret
 audioselect:
 	cmp Selected, 1
-	je mute		;;;;;
+	je mute	;;;;;
 	cmp Selected, 2
-	je music		;;;;;
+	je music	;;;;;
 	cmp Selected, 3
 	je sfx
 	cmp Selected, 4
@@ -2393,36 +2864,181 @@ settingsselectbot:
 	ret
 
 gamemovement:
+	cmp wParam, VK_UP
+	je gameupselect
+	cmp wParam, VK_DOWN
+	je gamedownselect
+	cmp wParam, VK_RETURN
+	je gameselect
+	cmp wParam, VK_ESCAPE
+	je closing
+	ret
+gameupselect:
+	dec Selected
+	cmp Selected, 1
+	jl gameselectbot
+	ret
+gamedownselect:
+	inc Selected
+	cmp Selected, 4	;number of buttons: local, online, single, back
+	jg gameselecttop
+	ret
+gameselect:
+	cmp Selected, 1
+	je localgame
+	cmp Selected, 2
+	je onlinegame
+	cmp Selected, 3
+	je singlegame
+	cmp Selected, 4
+	je mainmenu
+	ret
+gameselecttop:
+	mov eax, 1
+	mov Selected, eax
+	ret
+gameselectbot:
+	mov eax, 4
+	mov Selected, eax
+	ret
+
+onlinegamemovement:
+	cmp wParam, VK_ESCAPE
+	je closing
+	cmp CountDown, 0	;-1
+	jne onlinetheend
+	invoke WhichPlayer, wParam
+	cmp eax, 1
+	je onlinemovement
+	jmp onlinetheend
+
+onlineboost:
+	mov eax, Speed
+	cmp Me.speed, eax
+	jne onlineboostret
+	cmp Me.boosts, 0
+	je onlineboostret
+	invoke GetTickCount
+	sub eax, MyBoostTime
+	cmp eax, 3000
+	jl onlineboostret
+	invoke GetTickCount
+	mov MyBoostTime, eax
+	xor eax, eax
+	mov MyBoostTiles, eax
+	mov eax, Boost
+	mov Me.speed, eax
+	dec Me.boosts
+	invoke mciSendString, offset playBoost, NULL, NULL, NULL
+onlineboostret:
+	ret
+onlinemovement:
+	mov eax, MyNowKey
+	mov MyLastKey, eax
+	mov eax, wParam
+	mov MyNowKey, eax
+	mov eax, MyNowKeyTime
+	mov MyLastKeyTime, eax
+	invoke GetTickCount
+	mov MyNowKeyTime, eax
+	mov eax, MyNowKey
+	cmp MyLastKey, eax
+	jne onlinenotboost
+	mov eax, MyNowKeyTime
+	sub eax, MyLastKeyTime
+	cmp eax, 500
+	jle onlineboost
+	jmp onlinenotboost
+
+onlinenotboost:
+	cmp Me.horizontal, 0
+	jne onlineVertically
+
+onlineHorizontally:
+	cmp wParam, VK_LEFT
+	je onlineleft
+	cmp wParam, VK_RIGHT
+	je onlineright
+
+	cmp Me.vertical, 0
+	jne onlinetheend
+
+onlineVertically:
+	cmp wParam, VK_UP
+	je onlineup
+	cmp wParam, VK_DOWN
+	je onlinedown
+	ret
+
+onlineleft:
+	;invoke mciSendString, offset stopTurn, NULL, NULL, NULL
+	;invoke mciSendString, offset playTurn, NULL, NULL, NULL
+	mov eax, LEFT
+	mov Me.facing, eax
+	mov Me.horizontal, 1
+	mov Me.vertical, 0
+	ret
+
+onlineright:
+	;invoke mciSendString, offset stopTurn, NULL, NULL, NULL
+	;invoke mciSendString, offset playTurn, NULL, NULL, NULL
+	mov eax, RIGHT
+	mov Me.facing, eax
+	mov Me.horizontal, 1
+	mov Me.vertical, 0
+	ret
+
+onlinedown:
+	;invoke mciSendString, offset stopTurn, NULL, NULL, NULL
+	;invoke mciSendString, offset playTurn, NULL, NULL, NULL
+	mov eax, DOWN
+	mov Me.facing, eax
+	mov Me.horizontal, 0
+	mov Me.vertical, 1
+	ret
+
+onlineup:
+	;invoke mciSendString, offset stopTurn, NULL, NULL, NULL
+	;invoke mciSendString, offset playTurn, NULL, NULL, NULL
+	mov eax, UP
+	mov Me.facing, eax
+	mov Me.horizontal, 0
+	mov Me.vertical, 1
+	ret
+onlinetheend:
+	ret
+
+localgamemovement:
 	cmp wParam, VK_ESCAPE
 	je closing
 	cmp wParam, VK_P
 	je pausing
 	cmp wParam, VK_R
 	je newgame
-	cmp CountDown, 0		;-1
-	jne theend
+	cmp CountDown, 0	;-1
+	jne localtheend
 	;cmp wParam, VK_RSHIFT
-	;je gameboost1
+	;je localboost1
 	;cmp wParam, VK_LSHIFT
-	;je gameboost2
+	;je localboost2
 	invoke WhichPlayer, wParam
 	cmp eax, 1
-	je gamemovement1
+	je localmovement1
 	cmp eax, 2
-	je gamemovement2
+	je localmovement2
 	cmp eax, -1
-	je theend
+	je localtheend
 
-gameboost1:
+localboost1:
 	mov eax, Speed
 	cmp P1.speed, eax
-	jne boostret1
+	jne localboostret1
 	cmp P1.boosts, 0
-	je boostret1
+	je localboostret1
 	invoke GetTickCount
 	sub eax, BoostTime1
 	cmp eax, 3000
-	jl boostret1
+	jl localboostret1
 	invoke GetTickCount
 	mov BoostTime1, eax
 	xor eax, eax
@@ -2431,19 +3047,19 @@ gameboost1:
 	mov P1.speed, eax
 	dec P1.boosts
 	invoke mciSendString, offset playBoost, NULL, NULL, NULL
-boostret1:
+localboostret1:
 	ret
 
-gameboost2:
+localboost2:
 	mov eax, Speed
 	cmp P2.speed, eax
-	jne boostret2
+	jne localboostret2
 	cmp P2.boosts, 0
-	je boostret2
+	je localboostret2
 	invoke GetTickCount
 	sub eax, BoostTime2
 	cmp eax, 3000
-	jl boostret1
+	jl localboostret1
 	invoke GetTickCount
 	mov BoostTime2, eax
 	xor eax, eax
@@ -2452,10 +3068,10 @@ gameboost2:
 	mov P2.speed, eax
 	dec P2.boosts
 	invoke mciSendString, offset playBoost, NULL, NULL, NULL
-boostret2:
+localboostret2:
 	ret
 
-gamemovement1:
+localmovement1:
 	mov eax, NowKey1
 	mov LastKey1, eax
 	mov eax, wParam
@@ -2466,34 +3082,34 @@ gamemovement1:
 	mov NowKeyTime1, eax
 	mov eax, NowKey1
 	cmp LastKey1, eax
-	jne notboost1
+	jne localnotboost1
 	mov eax, NowKeyTime1
 	sub eax, LastKeyTime1
 	cmp eax, 500
-	jle gameboost1
-	jmp notboost1
+	jle localboost1
+	jmp localnotboost1
 
-notboost1:
+localnotboost1:
 	cmp P1.horizontal, 0
-	jne Vertically1
- 
-Horizontally1:
+	jne localVertically1
+
+localHorizontally1:
 	cmp wParam, VK_LEFT
-	je left1
+	je localleft1
 	cmp wParam, VK_RIGHT
-	je right1
- 
+	je localright1
+
 	cmp P1.vertical, 0
-	jne theend
- 
-Vertically1:
+	jne localtheend
+
+localVertically1:
 	cmp wParam, VK_UP
-	je up1
+	je localup1
 	cmp wParam, VK_DOWN
-	je down1
+	je localdown1
 	ret
- 
-left1:
+
+localleft1:
 	;invoke mciSendString, offset stopTurn, NULL, NULL, NULL
 	;invoke mciSendString, offset playTurn, NULL, NULL, NULL
 	mov eax, LEFT
@@ -2502,7 +3118,7 @@ left1:
 	mov P1.vertical, 0
 	ret
 
-right1:
+localright1:
 	;invoke mciSendString, offset stopTurn, NULL, NULL, NULL
 	;invoke mciSendString, offset playTurn, NULL, NULL, NULL
 	mov eax, RIGHT
@@ -2511,7 +3127,7 @@ right1:
 	mov P1.vertical, 0
 	ret
 
-down1:
+localdown1:
 	;invoke mciSendString, offset stopTurn, NULL, NULL, NULL
 	;invoke mciSendString, offset playTurn, NULL, NULL, NULL
 	mov eax, DOWN
@@ -2519,8 +3135,8 @@ down1:
 	mov P1.horizontal, 0
 	mov P1.vertical, 1
 	ret
- 
-up1:
+
+localup1:
 	;invoke mciSendString, offset stopTurn, NULL, NULL, NULL
 	;invoke mciSendString, offset playTurn, NULL, NULL, NULL
 	mov eax, UP
@@ -2528,8 +3144,8 @@ up1:
 	mov P1.horizontal, 0
 	mov P1.vertical, 1
 	ret
- 
-gamemovement2:
+
+localmovement2:
 	mov eax, NowKey2
 	mov LastKey2, eax
 	mov eax, wParam
@@ -2540,34 +3156,34 @@ gamemovement2:
 	mov NowKeyTime2, eax
 	mov eax, NowKey2
 	cmp LastKey2, eax
-	jne notboost2
+	jne localnotboost2
 	mov eax, NowKeyTime2
 	sub eax, LastKeyTime2
 	cmp eax, 500
-	jle gameboost2
-	jmp notboost2
+	jle localboost2
+	jmp localnotboost2
 
-notboost2:
+localnotboost2:
 	cmp P2.horizontal, 0
-	jne Vertically2
+	jne localVertically2
 
-Horizontally2:
+localHorizontally2:
 	cmp wParam, VK_A
-	je left2
+	je localleft2
 	cmp wParam, VK_D
-	je right2
- 
+	je localright2
+
 	cmp P2.vertical, 0
-	jne theend
- 
-Vertically2:
+	jne localtheend
+
+localVertically2:
 	cmp wParam, VK_W
-	je up2
+	je localup2
 	cmp wParam, VK_S
-	je down2
+	je localdown2
 	ret
- 
-left2:
+
+localleft2:
 	;invoke mciSendString, offset stopTurn, NULL, NULL, NULL
 	;invoke mciSendString, offset playTurn, NULL, NULL, NULL
 	mov eax, LEFT
@@ -2575,8 +3191,8 @@ left2:
 	mov P2.horizontal, 1
 	mov P2.vertical, 0
 	ret
- 
-right2:
+
+localright2:
 	;invoke mciSendString, offset stopTurn, NULL, NULL, NULL
 	;invoke mciSendString, offset playTurn, NULL, NULL, NULL
 	mov eax, RIGHT
@@ -2584,8 +3200,8 @@ right2:
 	mov P2.horizontal, 1
 	mov P2.vertical, 0
 	ret
- 
-down2:
+
+localdown2:
 	;invoke mciSendString, offset stopTurn, NULL, NULL, NULL
 	;invoke mciSendString, offset playTurn, NULL, NULL, NULL
 	mov eax, DOWN
@@ -2593,8 +3209,8 @@ down2:
 	mov P2.horizontal, 0
 	mov P2.vertical, 1
 	ret
- 
-up2:
+
+localup2:
 	;invoke mciSendString, offset stopTurn, NULL, NULL, NULL
 	;invoke mciSendString, offset playTurn, NULL, NULL, NULL
 	mov eax, UP
@@ -2602,13 +3218,124 @@ up2:
 	mov P2.horizontal, 0
 	mov P2.vertical, 1
 	ret
- 
-theend:
-	 ret
- 
+localtheend:
+	ret
+
+singlegamemovement:
+	cmp wParam, VK_ESCAPE
+	je closing
+	cmp CountDown, 0	;-1
+	jne singletheend
+	invoke WhichPlayer, wParam
+	cmp eax, 1
+	je singlemovement
+	jmp singletheend
+
+singleboost:
+	mov eax, Speed
+	cmp P1.speed, eax
+	jne singleboostret
+	cmp P1.boosts, 0
+	je singleboostret
+	invoke GetTickCount
+	sub eax, MyBoostTime
+	cmp eax, 3000
+	jl singleboostret
+	invoke GetTickCount
+	mov MyBoostTime, eax
+	xor eax, eax
+	mov MyBoostTiles, eax
+	mov eax, Boost
+	mov P1.speed, eax
+	dec P1.boosts
+	invoke mciSendString, offset playBoost, NULL, NULL, NULL
+singleboostret:
+	ret
+singlemovement:
+	mov eax, MyNowKey
+	mov MyLastKey, eax
+	mov eax, wParam
+	mov MyNowKey, eax
+	mov eax, MyNowKeyTime
+	mov MyLastKeyTime, eax
+	invoke GetTickCount
+	mov MyNowKeyTime, eax
+	mov eax, MyNowKey
+	cmp MyLastKey, eax
+	jne singlenotboost
+	mov eax, MyNowKeyTime
+	sub eax, MyLastKeyTime
+	cmp eax, 500
+	jle singleboost
+	jmp singlenotboost
+
+singlenotboost:
+	cmp P1.horizontal, 0
+	jne singleVertically
+
+singleHorizontally:
+	cmp wParam, VK_LEFT
+	je singleleft
+	cmp wParam, VK_RIGHT
+	je singleright
+
+	cmp P1.vertical, 0
+	jne singletheend
+
+singleVertically:
+	cmp wParam, VK_UP
+	je singleup
+	cmp wParam, VK_DOWN
+	je singledown
+	ret
+
+singleleft:
+	;invoke mciSendString, offset stopTurn, NULL, NULL, NULL
+	;invoke mciSendString, offset playTurn, NULL, NULL, NULL
+	mov eax, LEFT
+	mov P1.facing, eax
+	mov P1.horizontal, 1
+	mov P1.vertical, 0
+	ret
+
+singleright:
+	;invoke mciSendString, offset stopTurn, NULL, NULL, NULL
+	;invoke mciSendString, offset playTurn, NULL, NULL, NULL
+	mov eax, RIGHT
+	mov P1.facing, eax
+	mov P1.horizontal, 1
+	mov P1.vertical, 0
+	ret
+
+singledown:
+	;invoke mciSendString, offset stopTurn, NULL, NULL, NULL
+	;invoke mciSendString, offset playTurn, NULL, NULL, NULL
+	mov eax, DOWN
+	mov P1.facing, eax
+	mov P1.horizontal, 0
+	mov P1.vertical, 1
+	ret
+
+singleup:
+	;invoke mciSendString, offset stopTurn, NULL, NULL, NULL
+	;invoke mciSendString, offset playTurn, NULL, NULL, NULL
+	mov eax, UP
+	mov P1.facing, eax
+	mov P1.horizontal, 0
+	mov P1.vertical, 1
+	ret
+singletheend:
+	ret
+
 statuspainting:
 	cmp status, GAME
 	je gamepaint
+	cmp status, LOCALGAME
+	je localgamepaint
+	cmp status, ONLINEGAME
+	je onlinegamepaint
+	cmp status, SINGLEGAME
+	je singlegamepaint
 	cmp status, MAINMENU
 	je mainmenupaint
 	cmp status, SETTINGS
@@ -2726,8 +3453,25 @@ audiopaint:
 	ret
 
 gamepaint:
-	cmp CountDown, 0		;-1
-	je nextgamepaint
+	invoke BeginPaint, myhWnd, addr paint
+	mov hdc, eax
+	invoke CreateCompatibleDC, hdc
+	mov mem_hdc, eax
+	invoke CreateCompatibleBitmap, hdc, WinWidth, WinHeight
+	mov mem_hbm, eax
+	invoke SelectObject, mem_hdc, mem_hbm
+	mov OldHandle, eax
+	invoke DrawBG, status, rect, mem_hdc, myhWnd
+	invoke BitBlt, hdc, 0, 0, WinWidth, WinHeight, mem_hdc, 0, 0, SRCCOPY
+	invoke SelectObject, mem_hdc, OldHandle
+	invoke DeleteObject, mem_hbm
+	invoke DeleteDC, mem_hdc
+	invoke EndPaint, myhWnd, addr paint
+	ret
+
+localgamepaint:
+	cmp CountDown, 0	;-1
+	je nextlocalpaint
 
 	invoke BeginPaint, myhWnd, addr paint
 	mov hdc, eax
@@ -2738,8 +3482,8 @@ gamepaint:
 	invoke SelectObject, mem_hdc, mem_hbm
 	mov OldHandle, eax
 	invoke DrawBG, status, rect, mem_hdc, myhWnd
-	invoke SetGrid, P1.x, P1.y, 1
-	invoke SetGrid, P2.x, P2.y, 2
+	invoke SetGrid, P1.x, P1.y, P1.id
+	invoke SetGrid, P2.x, P2.y, P2.id
 	invoke DrawGrid, mem_hdc
 	invoke BitBlt, hdc, 0, 0, WinWidth, WinHeight, mem_hdc, 0, 0, SRCCOPY
 	invoke SelectObject, mem_hdc, OldHandle
@@ -2750,22 +3494,28 @@ gamepaint:
 	invoke GetTickCount
 	sub eax, CountTime
 	cmp eax, 1000
-	jge Count
+	jge localcount
 	ret
-Count:
+localcount:
 	dec CountDown
 	invoke GetTickCount
 	mov CountTime, eax
+	cmp CountDown, 0
+	jne localnomusic
+	cmp Music, 0
+	je localnomusic
+	invoke mciSendString, offset playDerezzed, NULL, NULL, NULL
+localnomusic:
 	ret
 
-nextgamepaint:
+nextlocalpaint:
 	;mov eax, Speed
 	;cmp P1.speed, eax
 	;je notboosting1
 	;invoke GetTickCount
 	;sub eax, BoostTime1
 	;cmp eax, 300
-	;jg endboost1
+	;jg localendboost1
 
 ;notboosting1:
 	mov eax, P1.speed
@@ -2773,124 +3523,108 @@ nextgamepaint:
 	xor edx, edx
 	div ecx
 	mov ecx, eax
-gamepaint1:
+localpaint1:
 	mov eax, Boost
 	cmp P1.speed, eax
-	jne next1
+	jne localnext1
 	inc BoostTiles1
 	mov eax, BoostTiles1
 	cmp eax, 20
-	jg endboost1
-	jmp next1
-endboost1:
+	jg localendboost1
+	jmp localnext1
+localendboost1:
 	xor eax, eax
 	mov BoostTiles1, eax
 	mov eax, Speed
 	mov P1.speed, eax
-	jmp next1
-next1:
+	jmp localnext1
+localnext1:
 	push ecx
 	cmp P1.facing, LEFT
-	je moveleft1
+	je localmoveleft1
 	cmp P1.facing, RIGHT
-	je moveright1
+	je localmoveright1
 	cmp P1.facing, DOWN
-	je movedown1
+	je localmovedown1
 	cmp P1.facing, UP
-	je moveup1
+	je localmoveup1
 	pusha
 	cmp P1.facing, STOP
-	je notdead1
+	je localnotdead1
 
-moveleft1:
-	mov eax, Speed
-	mov ebx, MyD
-	xor edx, edx
-	div ebx
-	sub P1.x, eax
-	jmp checkalive1
- 
-moveright1:
-	mov eax, Speed
-	mov ebx, MyD
-	xor edx, edx
-	div ebx
-	add P1.x, eax
-	jmp checkalive1
- 
-movedown1:
-	mov eax, Speed
-	mov ebx, MyD
-	xor edx, edx
-	div ebx
-	add P1.y, eax
-	jmp checkalive1
- 
-moveup1:
-	mov eax, Speed
-	mov ebx, MyD
-	xor edx, edx
-	div ebx
-	sub P1.y, eax
-	jmp checkalive1
+localmoveleft1:
+	dec P1.x
+	jmp localcheckalive1
 
-checkalive1:
+localmoveright1:
+	inc P1.x
+	jmp localcheckalive1
+
+localmovedown1:
+	inc P1.y
+	jmp localcheckalive1
+
+localmoveup1:
+	dec P1.y
+	jmp localcheckalive1
+
+localcheckalive1:
 	pusha
 	cmp P1.x, 0
-	jl dead1
+	jl localdead1
 	mov eax, WinWidth
 	mov ebx, MyD
 	xor edx, edx
 	div ebx
 	dec eax
 	cmp P1.x, eax
-	jg dead1
+	jg localdead1
 	cmp P1.y, 0
-	jl dead1
+	jl localdead1
 	mov eax, WinHeight
 	mov ebx, MyD
 	xor edx, edx
 	div ebx
 	dec eax
 	cmp P1.y, eax
-	jg dead1
+	jg localdead1
 	mov eax, P2.x
 	cmp P1.x, eax
-	jne nottied1
+	jne localnottied1
 	mov eax, P2.y
 	cmp P1.y, eax
-	je tied
-nottied1:
+	je localtied
+localnottied1:
 	invoke ReadGrid, P1.x, P1.y
 	cmp al, -99
-	je dead1
+	je localdead1
 	cmp al, 0
-	je notdead1
-	jmp dead1
+	je localnotdead1
+	jmp localdead1
 
-dead1:
+localdead1:
 	popa
 	invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
-	invoke mciSendString, offset playScream, NULL, NULL, NULL
+	invoke mciSendString, offset playApplause, NULL, NULL, NULL
 	mov eax, status
 	mov laststatus, eax
 	mov eax, ENDING
 	mov status, eax
-	mov eax, 2
+	mov eax, P2WINS
 	mov Winner, eax
 	cmp Music, 0
-	je dead1nomusic
+	je localdead1nomusic
 	invoke PlayMusic
-dead1nomusic:
+localdead1nomusic:
 	ret
 
-notdead1:
-	invoke SetGrid, P1.x, P1.y, 1
+localnotdead1:
+	invoke SetGrid, P1.x, P1.y, P1.id
 	popa
 	pop ecx
 	dec ecx
 	cmp ecx, 0
-	jne gamepaint1
+	jne localpaint1
 
 	;mov eax, Speed
 	;cmp P2.speed, eax
@@ -2898,131 +3632,115 @@ notdead1:
 	;invoke GetTickCount
 	;sub eax, BoostTime2
 	;cmp eax, 300
-	;jg endboost2
+	;jg localendboost2
 	mov eax, P2.speed
 	mov ecx, MyD
 	xor edx, edx
 	div ecx
 	mov ecx, eax
-gamepaint2:
+localpaint2:
 	mov eax, Boost
 	cmp P2.speed, eax
-	jne next2
+	jne localnext2
 	inc BoostTiles2
 	mov eax, BoostTiles2
 	cmp eax, 20
-	jg endboost2
-	jmp next2
-endboost2:
+	jg localendboost2
+	jmp localnext2
+localendboost2:
 	xor eax, eax
 	mov BoostTiles2, eax
 	mov eax, Speed
 	mov P2.speed, eax
-	jmp next2
-next2:
+	jmp localnext2
+localnext2:
 	push ecx
 	cmp P2.facing, LEFT
-	je moveleft2
+	je localmoveleft2
 	cmp P2.facing, RIGHT
-	je moveright2
+	je localmoveright2
 	cmp P2.facing, DOWN
-	je movedown2
+	je localmovedown2
 	cmp P2.facing, UP
-	je moveup2
+	je localmoveup2
 	pusha
 	cmp P2.facing, STOP
-	je notdead2
- 
-moveleft2:
-	mov eax, Speed
-	mov ebx, MyD
-	xor edx, edx
-	div ebx
-	sub P2.x, eax
-	jmp checkalive2
- 
-moveright2:
-	mov eax, Speed
-	mov ebx, MyD
-	xor edx, edx
-	div ebx
-	add P2.x, eax
-	jmp checkalive2
- 
-movedown2:
-	mov eax, Speed
-	mov ebx, MyD
-	xor edx, edx
-	div ebx
-	add P2.y, eax
-	jmp checkalive2
- 
-moveup2:
-	mov eax, Speed
-	mov ebx, MyD
-	xor edx, edx
-	div ebx
-	sub P2.y, eax
-	jmp checkalive2
+	je localnotdead2
 
-checkalive2:
+localmoveleft2:
+	dec P2.x
+	jmp localcheckalive2
+
+localmoveright2:
+	inc P2.x
+	jmp localcheckalive2
+
+localmovedown2:
+	inc P2.y
+	jmp localcheckalive2
+
+localmoveup2:
+	dec P2.y
+	jmp localcheckalive2
+
+localcheckalive2:
 	pusha
 	cmp P2.x, 0
-	jl dead2
+	jl localdead2
 	mov eax, WinWidth
 	mov ebx, MyD
 	xor edx, edx
 	div ebx
 	dec eax
 	cmp P2.x, eax
-	jg dead2
+	jg localdead2
 	cmp P2.y, 0
-	jl dead2
+	jl localdead2
 	mov eax, WinHeight
 	mov ebx, MyD
 	xor edx, edx
 	div ebx
 	dec eax
 	cmp P2.y, eax
-	jg dead2
+	jg localdead2
 	mov eax, P2.x
 	cmp P1.x, eax
-	jne nottied2
+	jne localnottied2
 	mov eax, P2.y
 	cmp P1.y, eax
-	je tied
+	je localtied
 
-nottied2:
+localnottied2:
 	invoke ReadGrid, P2.x, P2.y
 	cmp al, -99
-	je dead2
+	je localdead2
 	cmp al, 0
-	je notdead2
-	jmp dead2
+	je localnotdead2
+	jmp localdead2
 
-dead2:
+localdead2:
 	popa
 	invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
-	invoke mciSendString, offset playScream, NULL, NULL, NULL
+	invoke mciSendString, offset playApplause, NULL, NULL, NULL
 	mov eax, status
 	mov laststatus, eax
 	mov eax, ENDING
 	mov status, eax
-	mov eax, 1
+	mov eax, P1WINS
 	mov Winner, eax
 	cmp Music, 0
-	je dead2nomusic
+	je localdead2nomusic
 	invoke PlayMusic
-dead2nomusic:
+localdead2nomusic:
 	ret
- 
-notdead2:
-	invoke SetGrid, P2.x, P2.y, 2
+
+localnotdead2:
+	invoke SetGrid, P2.x, P2.y, P2.id
 	popa
 	pop ecx
 	dec ecx
 	cmp ecx, 0
-	jne gamepaint2
+	jne localpaint2
 
 	invoke BeginPaint, myhWnd, addr paint
 	mov hdc, eax
@@ -3041,21 +3759,558 @@ notdead2:
 	invoke EndPaint, myhWnd, addr paint
 	ret
 
-tied:
+localtied:
 	popa
 	mov eax, status
 	mov laststatus, eax
 	mov eax, ENDING
 	mov status, eax
-	mov eax, 0
+	mov eax, TIE
 	mov Winner, eax
 	invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
 	ret
 
+onlinegamepaint:
+	cmp CountDown, 0	;-1
+	je nextonlinepaint
+	invoke BeginPaint, myhWnd, addr paint
+	mov hdc, eax
+	invoke CreateCompatibleDC, hdc
+	mov mem_hdc, eax
+	invoke CreateCompatibleBitmap, hdc, WinWidth, WinHeight
+	mov mem_hbm, eax
+	invoke SelectObject, mem_hdc, mem_hbm
+	mov OldHandle, eax
+	invoke DrawBG, status, rect, mem_hdc, myhWnd
+	invoke SetGrid, Me.x, Me.y, Me.id
+	invoke DrawGrid, mem_hdc
+	invoke BitBlt, hdc, 0, 0, WinWidth, WinHeight, mem_hdc, 0, 0, SRCCOPY
+	invoke SelectObject, mem_hdc, OldHandle
+	invoke DeleteObject, mem_hbm
+	invoke DeleteDC, mem_hdc
+	invoke EndPaint, myhWnd, addr paint
+	invoke GetTickCount
+	sub eax, CountTime
+	cmp eax, 1000
+	jge onlinecount
+	ret
+onlinecount:
+	dec CountDown
+	invoke GetTickCount
+	mov CountTime, eax
+	ret
+
+nextonlinepaint:
+	;mov eax, Speed
+	;cmp P1.speed, eax
+	;je notboosting1
+	;invoke GetTickCount
+	;sub eax, BoostTime1
+	;cmp eax, 300
+	;jg onlineendboost1
+
+;notboostingme:
+	mov eax, Me.speed
+	mov ecx, MyD
+	xor edx, edx
+	div ecx
+	mov ecx, eax
+onlinepaint:
+	mov eax, Boost
+	cmp Me.speed, eax
+	jne onlinenext
+	inc MyBoostTiles
+	mov eax, MyBoostTiles
+	cmp eax, 20
+	jg onlineendboost
+	jmp onlinenext
+onlineendboost:
+	xor eax, eax
+	mov MyBoostTiles, eax
+	mov eax, Speed
+	mov Me.speed, eax
+	jmp onlinenext
+onlinenext:
+	push ecx
+	cmp Me.facing, LEFT
+	je onlinemoveleft
+	cmp Me.facing, RIGHT
+	je onlinemoveright
+	cmp Me.facing, DOWN
+	je onlinemovedown
+	cmp Me.facing, UP
+	je onlinemoveup
+	pusha
+	cmp Me.facing, STOP
+	je onlinenotdead
+
+onlinemoveleft:
+	dec P1.x
+	jmp onlinecheckalive
+
+onlinemoveright:
+	inc P1.x
+	jmp onlinecheckalive
+
+onlinemovedown:
+	inc P1.y
+	jmp onlinecheckalive
+
+onlinemoveup:
+	dec P1.y
+	jmp onlinecheckalive
+
+onlinecheckalive:
+	pusha
+	cmp Me.x, 0
+	jl onlinedead
+	mov eax, WinWidth
+	mov ebx, MyD
+	xor edx, edx
+	div ebx
+	dec eax
+	cmp Me.x, eax
+	jg onlinedead
+	cmp Me.y, 0
+	jl onlinedead
+	mov eax, WinHeight
+	mov ebx, MyD
+	xor edx, edx
+	div ebx
+	dec eax
+	cmp Me.y, eax
+	jg onlinedead
+	mov eax, P2.x
+	cmp Me.x, eax
+	jne onlinenottied
+	mov eax, P2.y
+	cmp Me.y, eax
+	je onlinetied
+onlinenottied:
+	invoke ReadGrid, Me.x, Me.y
+	cmp al, -99
+	je onlinedead
+	cmp al, 0
+	je onlinenotdead
+	jmp onlinedead
+
+onlinedead:
+	popa
+	invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
+	invoke mciSendString, offset playApplause, NULL, NULL, NULL
+	mov eax, status
+	mov laststatus, eax
+	mov eax, ENDING
+	mov status, eax
+	mov eax, LOSE
+	mov Winner, eax
+	cmp Music, 0
+	je onlinedeadnomusic
+	invoke PlayMusic
+onlinedeadnomusic:
+	ret
+
+onlinenotdead:
+	invoke SetGrid, Me.x, Me.y, Me.id
+	popa
+	pop ecx
+	dec ecx
+	cmp ecx, 0
+	jne onlinepaint
+
+	invoke BeginPaint, myhWnd, addr paint
+	mov hdc, eax
+	invoke CreateCompatibleDC, hdc
+	mov mem_hdc, eax
+	invoke CreateCompatibleBitmap, hdc, WinWidth, WinHeight
+	mov mem_hbm, eax
+	invoke SelectObject, mem_hdc, mem_hbm
+	mov OldHandle, eax
+	invoke DrawBG, status, rect, mem_hdc, myhWnd
+	invoke DrawGrid, mem_hdc
+	invoke BitBlt, hdc, 0, 0, WinWidth, WinHeight, mem_hdc, 0, 0, SRCCOPY
+	invoke SelectObject, mem_hdc, OldHandle
+	invoke DeleteObject, mem_hbm
+	invoke DeleteDC, mem_hdc
+	invoke EndPaint, myhWnd, addr paint
+	ret
+
+onlinetied:
+	popa
+	mov eax, status
+	mov laststatus, eax
+	mov eax, ENDING
+	mov status, eax
+	mov eax, TIE
+	mov Winner, eax
+	invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
+	ret
+
+singlegamepaint:
+	cmp CountDown, 0	;-1
+	je nextsinglepaint
+
+	invoke BeginPaint, myhWnd, addr paint
+	mov hdc, eax
+	invoke CreateCompatibleDC, hdc
+	mov mem_hdc, eax
+	invoke CreateCompatibleBitmap, hdc, WinWidth, WinHeight
+	mov mem_hbm, eax
+	invoke SelectObject, mem_hdc, mem_hbm
+	mov OldHandle, eax
+	invoke DrawBG, status, rect, mem_hdc, myhWnd
+	invoke SetGrid, P1.x, P1.y, P1.id
+	invoke SetGrid, P2.x, P2.y, P2.id
+	invoke DrawGrid, mem_hdc
+	invoke BitBlt, hdc, 0, 0, WinWidth, WinHeight, mem_hdc, 0, 0, SRCCOPY
+	invoke SelectObject, mem_hdc, OldHandle
+	invoke DeleteObject, mem_hbm
+	invoke DeleteDC, mem_hdc
+	invoke EndPaint, myhWnd, addr paint
+
+	invoke GetTickCount
+	sub eax, CountTime
+	cmp eax, 1000
+	jge singlecount
+	ret
+singlecount:
+	dec CountDown
+	invoke GetTickCount
+	mov CountTime, eax
+	cmp CountDown, 0
+	jne singlenomusic
+	cmp Music, 0
+	je singlenomusic
+	invoke mciSendString, offset playDerezzed, NULL, NULL, NULL
+singlenomusic:
+	ret
+
+nextsinglepaint:
+	;mov eax, Speed
+	;cmp P1.speed, eax
+	;je notboosting1
+	;invoke GetTickCount
+	;sub eax, BoostTime1
+	;cmp eax, 300
+	;jg singleendboost1
+
+;notboosting1:
+	mov eax, P1.speed
+	mov ecx, MyD
+	xor edx, edx
+	div ecx
+	mov ecx, eax
+singlepaint1:
+	mov eax, Boost
+	cmp P1.speed, eax
+	jne singlenext1
+	inc BoostTiles1
+	mov eax, BoostTiles1
+	cmp eax, 20
+	jg singleendboost1
+	jmp singlenext1
+singleendboost1:
+	xor eax, eax
+	mov BoostTiles1, eax
+	mov eax, Speed
+	mov P1.speed, eax
+	jmp singlenext1
+singlenext1:
+	push ecx
+	cmp P1.facing, LEFT
+	je singlemoveleft1
+	cmp P1.facing, RIGHT
+	je singlemoveright1
+	cmp P1.facing, DOWN
+	je singlemovedown1
+	cmp P1.facing, UP
+	je singlemoveup1
+	pusha
+	cmp P1.facing, STOP
+	je singlenotdead1
+
+singlemoveleft1:
+	dec P1.x
+	jmp singlecheckalive1
+
+singlemoveright1:
+	inc P1.x
+	jmp singlecheckalive1
+
+singlemovedown1:
+	inc P1.y
+	jmp singlecheckalive1
+
+singlemoveup1:
+	dec P1.y
+	jmp singlecheckalive1
+
+singlecheckalive1:
+	pusha
+	cmp P1.x, 0
+	jl singledead1
+	mov eax, WinWidth
+	mov ebx, MyD
+	xor edx, edx
+	div ebx
+	dec eax
+	cmp P1.x, eax
+	jg singledead1
+	cmp P1.y, 0
+	jl singledead1
+	mov eax, WinHeight
+	mov ebx, MyD
+	xor edx, edx
+	div ebx
+	dec eax
+	cmp P1.y, eax
+	jg singledead1
+	mov eax, P2.x
+	cmp P1.x, eax
+	jne singlenottied1
+	mov eax, P2.y
+	cmp P1.y, eax
+	je singletied
+singlenottied1:
+	invoke ReadGrid, P1.x, P1.y
+	cmp al, -99
+	je singledead1
+	cmp al, 0
+	je singlenotdead1
+	jmp singledead1
+
+singledead1:
+	popa
+	invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
+	invoke mciSendString, offset playApplause, NULL, NULL, NULL
+	mov eax, status
+	mov laststatus, eax
+	mov eax, ENDING
+	mov status, eax
+	mov eax, LOSE
+	mov Winner, eax
+	cmp Music, 0
+	je singledead1nomusic
+	invoke PlayMusic
+singledead1nomusic:
+	ret
+
+singlenotdead1:
+	invoke SetGrid, P1.x, P1.y, P1.id
+	popa
+	pop ecx
+	dec ecx
+	cmp ecx, 0
+	jne singlepaint1
+
+	;mov eax, Speed
+	;cmp P2.speed, eax
+	;je notboosting2
+	;invoke GetTickCount
+	;sub eax, BoostTime2
+	;cmp eax, 300
+	;jg singleendboost2
+	mov eax, P2.speed
+	mov ecx, MyD
+	xor edx, edx
+	div ecx
+	mov ecx, eax
+singlepaint2:
+	mov eax, Boost
+	cmp P2.speed, eax
+	jne singlenext2
+	inc BoostTiles2
+	mov eax, BoostTiles2
+	cmp eax, 20
+	jg singleendboost2
+	jmp singlenext2
+singleendboost2:
+	xor eax, eax
+	mov BoostTiles2, eax
+	mov eax, Speed
+	mov P2.speed, eax
+	jmp singlenext2
+singlenext2:
+	push ecx
+	cmp P2.facing, LEFT
+	je singlemoveleft2
+	cmp P2.facing, RIGHT
+	je singlemoveright2
+	cmp P2.facing, DOWN
+	je singlemovedown2
+	cmp P2.facing, UP
+	je singlemoveup2
+	cmp P2.facing, STOP
+	je singlenotdead2
+singlemoveleft2:
+	mov eax, P2.x
+	dec eax
+	invoke ReadGrid, eax, P2.y
+	cmp al, 0
+	je singleleft2
+	mov eax, P2.y
+	dec eax
+	invoke ReadGrid, P2.x, eax
+	cmp al, 0
+	je singleup2
+	mov eax, P2.y
+	inc eax
+	invoke ReadGrid, P2.x, eax
+	cmp al, 0
+	je singledown2
+	jmp singledead2
+
+singlemoveright2:
+	mov eax, P2.x
+	inc eax
+	invoke ReadGrid, eax, P2.y
+	cmp al, 0
+	je singleright2
+	mov eax, P2.y
+	dec eax
+	invoke ReadGrid, P2.x, eax
+	cmp al, 0
+	je singleup2
+	mov eax, P2.y
+	inc eax
+	invoke ReadGrid, P2.x, eax
+	cmp al, 0
+	je singledown2
+	jmp singledead2
+
+singlemovedown2:
+	mov eax, P2.y
+	inc eax
+	invoke ReadGrid, P2.x, eax
+	cmp al, 0
+	je singledown2
+	mov eax, P2.x
+	dec eax
+	invoke ReadGrid, eax, P2.y
+	cmp al, 0
+	je singleleft2
+	mov eax, P2.x
+	inc eax
+	invoke ReadGrid, eax, P2.y
+	cmp al, 0
+	je singleright2
+	jmp singledead2
+
+singlemoveup2:
+	mov eax, P2.y
+	dec eax
+	invoke ReadGrid, P2.x, eax
+	cmp al, 0
+	je singleup2
+	mov eax, P2.x
+	dec eax
+	invoke ReadGrid, eax, P2.y
+	cmp al, 0
+	je singleleft2
+	mov eax, P2.x
+	inc eax
+	invoke ReadGrid, eax, P2.y
+	cmp al, 0
+	je singleright2
+	jmp singledead2
+
+singleup2:
+	mov eax, UP
+	mov P2.facing, eax
+	mov P2.horizontal, 0
+	mov P2.vertical, 1
+	dec P2.y
+	jmp singlecheckalive2
+singledown2:
+	mov eax, DOWN
+	mov P2.facing, eax
+	mov P2.horizontal, 0
+	mov P2.vertical, 1
+	inc P2.y
+	jmp singlecheckalive2
+singleleft2:
+	mov eax, LEFT
+	mov P2.facing, eax
+	mov P2.horizontal, 1
+	mov P2.vertical, 0
+	dec P2.x
+	jmp singlecheckalive2
+singleright2:
+	mov eax, RIGHT
+	mov P2.facing, eax
+	mov P2.horizontal, 0
+	mov P2.vertical, 1
+	inc P2.x
+	jmp singlecheckalive2
+singlecheckalive2:
+	mov eax, P2.x
+	cmp P1.x, eax
+	jne singlenotdead2
+	mov eax, P2.y
+	cmp P1.y, eax
+	je singletied
+	jmp singlenotdead2
+
+singledead2:
+	invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
+	invoke mciSendString, offset playApplause, NULL, NULL, NULL
+	mov eax, status
+	mov laststatus, eax
+	mov eax, ENDING
+	mov status, eax
+	mov eax, WIN
+	mov Winner, eax
+	cmp Music, 0
+	je singledead2nomusic
+	invoke PlayMusic
+singledead2nomusic:
+	ret
+
+singlenotdead2:
+	invoke SetGrid, P2.x, P2.y, P2.id
+	pop ecx			;;;;;;;;;;;;;
+	dec ecx
+	cmp ecx, 0
+	jne singlepaint2
+
+	invoke BeginPaint, myhWnd, addr paint
+	mov hdc, eax
+	invoke CreateCompatibleDC, hdc
+	mov mem_hdc, eax
+	invoke CreateCompatibleBitmap, hdc, WinWidth, WinHeight
+	mov mem_hbm, eax
+	invoke SelectObject, mem_hdc, mem_hbm
+	mov OldHandle, eax
+	invoke DrawBG, status, rect, mem_hdc, myhWnd
+	invoke DrawGrid, mem_hdc
+	invoke BitBlt, hdc, 0, 0, WinWidth, WinHeight, mem_hdc, 0, 0, SRCCOPY
+	invoke SelectObject, mem_hdc, OldHandle
+	invoke DeleteObject, mem_hbm
+	invoke DeleteDC, mem_hdc
+	invoke EndPaint, myhWnd, addr paint
+	ret
+
+singletied:
+	popa
+	mov eax, status
+	mov laststatus, eax
+	mov eax, ENDING
+	mov status, eax
+	mov eax, TIE
+	mov Winner, eax
+	invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
+	ret
+	
 timing:
 	invoke InvalidateRect, myhWnd, NULL, TRUE
-	cmp status, GAME
-	jne uncool
+	cmp status, LOCALGAME
+	je localcool
+	cmp status, ONLINEGAME
+	je onlinecool
+	cmp status, SINGLEGAME
+	je singlecool
+	ret
+localcool:
 	invoke GetTickCount
 	sub eax, CoolTime
 	cmp eax, 5000
@@ -3072,6 +4327,30 @@ cool2:
 	inc P2.boosts
 	invoke GetTickCount
 	mov CoolTime, eax
+	ret
+onlinecool:
+	invoke GetTickCount
+	sub eax, CoolTime
+	cmp eax, 5000
+	jl uncool
+cool:
+	cmp Me.boosts, 3
+	jge uncool
+	inc Me.boosts
+	invoke GetTickCount
+	mov CoolTime, eax
+	ret
+singlecool:
+	invoke GetTickCount
+	sub eax, CoolTime
+	cmp eax, 5000
+	jl uncool
+	cmp P1.boosts, 3
+	jge uncool
+	inc P1.boosts
+	invoke GetTickCount
+	mov CoolTime, eax
+	ret
 uncool:
 	ret
 
@@ -3080,7 +4359,7 @@ OtherInstances:
 	ret
 ;============================================================================
 MainProcedure ENDP
- 
+
 main PROC
 LOCAL wndcls:WNDCLASSA
 LOCAL msg:MSG
@@ -3105,7 +4384,7 @@ invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, GAME1
 mov Game1BMH, eax
 mov eax, Game1BMH
-mov CurrentBMH, eax		;;;;;
+mov CurrentBMH, eax	;;;;;
 
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, GAME2
@@ -3144,6 +4423,10 @@ invoke LoadBitmap, eax, PAUSING
 mov PausingBMH, eax
 
 invoke GetModuleHandle, NULL
+invoke LoadBitmap, eax, GAME
+mov GameBMH, eax
+
+invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, EXITING
 mov ExitingBMH, eax
 
@@ -3172,6 +4455,24 @@ invoke LoadBitmap, eax, NEWGAMEBUTTON
 mov NewGameButtonBMH, eax
 invoke Get_Handle_To_Mask_Bitmap, NewGameButtonBMH, 0ffffffh	;white
 mov NewGameButtonMaskBMH, eax
+
+invoke GetModuleHandle, NULL
+invoke LoadBitmap, eax, LOCALGAME
+mov LocalButtonBMH, eax
+invoke Get_Handle_To_Mask_Bitmap, LocalButtonBMH, 0ffffffh	;white
+mov LocalButtonMaskBMH, eax
+
+invoke GetModuleHandle, NULL
+invoke LoadBitmap, eax, ONLINEGAME
+mov OnlineButtonBMH, eax
+invoke Get_Handle_To_Mask_Bitmap, OnlineButtonBMH, 0ffffffh	;white
+mov OnlineButtonMaskBMH, eax
+
+invoke GetModuleHandle, NULL
+invoke LoadBitmap, eax, SINGLEGAME
+mov SingleButtonBMH, eax
+invoke Get_Handle_To_Mask_Bitmap, SingleButtonBMH, 0ffffffh	;white
+mov SingleButtonMaskBMH, eax
 
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, MAINMENUBUTTON
@@ -3334,6 +4635,18 @@ invoke LoadBitmap, eax, P2WINS
 mov P2WinsBMH, eax
 invoke Get_Handle_To_Mask_Bitmap, P2WinsBMH, 0ffffffh	;white
 mov P2WinsMaskBMH, eax
+
+invoke GetModuleHandle, NULL
+invoke LoadBitmap, eax, WIN
+mov YouWinBMH, eax
+invoke Get_Handle_To_Mask_Bitmap, YouWinBMH, 0ffffffh	;white
+mov YouWinMaskBMH, eax
+
+invoke GetModuleHandle, NULL
+invoke LoadBitmap, eax, LOSE
+mov YouLoseBMH, eax
+invoke Get_Handle_To_Mask_Bitmap, YouLoseBMH, 0ffffffh	;white
+mov YouLoseMaskBMH, eax
 
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, COUNTGO
