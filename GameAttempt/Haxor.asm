@@ -4152,7 +4152,23 @@ singlemoveleft2:
 	dec eax
 	invoke ReadGrid, P2.x, eax
 	cmp al, 0
+	je singleleftcanup2
+	jmp singleleftnotup2
+singleleftcanup2:
+	mov eax, P2.y
+	inc eax
+	invoke ReadGrid, P2.x, eax
+	cmp al, 0
+	je singleleftcanupdown2
+	jmp singleup2
+singleleftcanupdown2:
+	invoke GetTickCount
+	shl eax, 31
+	shr eax, 31
+	cmp eax, 1
 	je singleup2
+	jmp singledown2
+singleleftnotup2:
 	mov eax, P2.y
 	inc eax
 	invoke ReadGrid, P2.x, eax
@@ -4170,7 +4186,23 @@ singlemoveright2:
 	dec eax
 	invoke ReadGrid, P2.x, eax
 	cmp al, 0
+	je singlerightcanup2
+	jmp singlerightnotup2
+singlerightcanup2:
+	mov eax, P2.y
+	inc eax
+	invoke ReadGrid, P2.x, eax
+	cmp al, 0
+	je singlerightcanupdown2
+	jmp singleup2
+singlerightcanupdown2:
+	invoke GetTickCount
+	shl eax, 31
+	shr eax, 31
+	cmp eax, 1
 	je singleup2
+	jmp singledown2
+singlerightnotup2:
 	mov eax, P2.y
 	inc eax
 	invoke ReadGrid, P2.x, eax
@@ -4188,7 +4220,23 @@ singlemovedown2:
 	dec eax
 	invoke ReadGrid, eax, P2.y
 	cmp al, 0
+	je singledowncanleft2
+	jmp singledownnotleft2
+singledowncanleft2:
+	mov eax, P2.x
+	inc eax
+	invoke ReadGrid, eax, P2.y
+	cmp al, 0
+	je singledowncanleftright2
+	jmp singleleft2
+singledowncanleftright2:
+	invoke GetTickCount
+	shl eax, 31
+	shr eax, 31
+	cmp eax, 1
 	je singleleft2
+	jmp singleright2
+singledownnotleft2:
 	mov eax, P2.x
 	inc eax
 	invoke ReadGrid, eax, P2.y
@@ -4206,7 +4254,23 @@ singlemoveup2:
 	dec eax
 	invoke ReadGrid, eax, P2.y
 	cmp al, 0
+	je singleupcanleft2
+	jmp singleupnotleft2
+singleupcanleft2:
+	mov eax, P2.x
+	inc eax
+	invoke ReadGrid, eax, P2.y
+	cmp al, 0
+	je singleupcanleftright2
+	jmp singleleft2
+singleupcanleftright2:
+	invoke GetTickCount
+	shl eax, 31
+	shr eax, 31
+	cmp eax, 1
 	je singleleft2
+	jmp singleright2
+singleupnotleft2:
 	mov eax, P2.x
 	inc eax
 	invoke ReadGrid, eax, P2.y
