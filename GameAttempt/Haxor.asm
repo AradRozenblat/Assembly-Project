@@ -2929,6 +2929,8 @@ onlineboost:
 	mov eax, Boost
 	mov Me.speed, eax
 	dec Me.boosts
+	cmp SFX, 0
+	je onlineboostret
 	invoke mciSendString, offset playBoost, NULL, NULL, NULL
 onlineboostret:
 	ret
@@ -3046,6 +3048,8 @@ localboost1:
 	mov eax, Boost
 	mov P1.speed, eax
 	dec P1.boosts
+	cmp SFX, 0
+	je localboostret1
 	invoke mciSendString, offset playBoost, NULL, NULL, NULL
 localboostret1:
 	ret
@@ -3067,6 +3071,8 @@ localboost2:
 	mov eax, Boost
 	mov P2.speed, eax
 	dec P2.boosts
+	cmp SFX, 0
+	je localboostret2
 	invoke mciSendString, offset playBoost, NULL, NULL, NULL
 localboostret2:
 	ret
@@ -3248,6 +3254,8 @@ singleboost:
 	mov eax, Boost
 	mov P1.speed, eax
 	dec P1.boosts
+	cmp SFX, 0
+	je singleboostret
 	invoke mciSendString, offset playBoost, NULL, NULL, NULL
 singleboostret:
 	ret
@@ -3605,7 +3613,10 @@ localnottied1:
 localdead1:
 	popa
 	invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
+	cmp SFX, 0
+	je localdead2nosfx
 	invoke mciSendString, offset playApplause, NULL, NULL, NULL
+localdead2nosfx:
 	mov eax, status
 	mov laststatus, eax
 	mov eax, ENDING
@@ -3721,7 +3732,10 @@ localnottied2:
 localdead2:
 	popa
 	invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
+	cmp SFX, 0
+	je localdead2nosfx
 	invoke mciSendString, offset playApplause, NULL, NULL, NULL
+localdead2nosfx:
 	mov eax, status
 	mov laststatus, eax
 	mov eax, ENDING
@@ -3761,13 +3775,21 @@ localnotdead2:
 
 localtied:
 	popa
+	invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
+	cmp SFX, 0
+	je localtiednosfx
+	invoke mciSendString, offset playApplause, NULL, NULL, NULL
+localtiednosfx:
 	mov eax, status
 	mov laststatus, eax
 	mov eax, ENDING
 	mov status, eax
 	mov eax, TIE
 	mov Winner, eax
-	invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
+	cmp Music, 0
+	je localtiednomusic
+	invoke PlayMusic
+localtiednomusic:
 	ret
 
 onlinegamepaint:
@@ -3897,7 +3919,10 @@ onlinenottied:
 onlinedead:
 	popa
 	invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
+	cmp SFX, 0
+	je onlinedeadnosfx
 	invoke mciSendString, offset playApplause, NULL, NULL, NULL
+onlinedeadnosfx:
 	mov eax, status
 	mov laststatus, eax
 	mov eax, ENDING
@@ -3937,13 +3962,21 @@ onlinenotdead:
 
 onlinetied:
 	popa
+	invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
+	cmp SFX, 0
+	je onlinetiednosfx
+	invoke mciSendString, offset playApplause, NULL, NULL, NULL
+onlinetiednosfx:
 	mov eax, status
 	mov laststatus, eax
 	mov eax, ENDING
 	mov status, eax
 	mov eax, TIE
 	mov Winner, eax
-	invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
+	cmp Music, 0
+	je onlinetiednomusic
+	invoke PlayMusic
+onlinetiednomusic:
 	ret
 
 singlegamepaint:
@@ -4082,7 +4115,10 @@ singlenottied1:
 singledead1:
 	popa
 	invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
+	cmp SFX, 0
+	je singledead1nosfx
 	invoke mciSendString, offset playApplause, NULL, NULL, NULL
+singledead1nosfx:
 	mov eax, status
 	mov laststatus, eax
 	mov eax, ENDING
@@ -4316,8 +4352,12 @@ singlecheckalive2:
 	jmp singlenotdead2
 
 singledead2:
+	popa
 	invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
+	cmp SFX, 0
+	je singledead2nosfx
 	invoke mciSendString, offset playApplause, NULL, NULL, NULL
+singledead2nosfx:
 	mov eax, status
 	mov laststatus, eax
 	mov eax, ENDING
@@ -4356,13 +4396,21 @@ singlenotdead2:
 
 singletied:
 	popa
+	invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
+	cmp SFX, 0
+	je singletiednosfx
+	invoke mciSendString, offset playApplause, NULL, NULL, NULL
+singletiednosfx:
 	mov eax, status
 	mov laststatus, eax
 	mov eax, ENDING
 	mov status, eax
 	mov eax, TIE
 	mov Winner, eax
-	invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
+	cmp Music, 0
+	je singletiednomusic
+	invoke PlayMusic
+singletiednomusic:
 	ret
 	
 timing:
