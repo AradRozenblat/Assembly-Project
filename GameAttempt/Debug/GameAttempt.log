@@ -1,27 +1,27 @@
-﻿Build started 5/25/2015 7:38:59 PM.
+﻿Build started 5/28/2015 10:48:04 AM.
      1>Project "C:\Users\Arad\Documents\Assembly Project\Assembly-Project\GameAttempt\GameAttempt.vcxproj" on node 2 (Build target(s)).
      1>_MASM:
          Assembling Haxor.asm...
-         cmd.exe /C "C:\Users\Arad\AppData\Local\Temp\tmp2f1b2b2fc7f44ad18ad9cada11f37444.cmd"
+         cmd.exe /C "C:\Users\Arad\AppData\Local\Temp\tmp726b14bd8c02433890e6ff82403b5812.cmd"
          ml.exe /c /nologo /Zi /Fo"Debug\Haxor.obj" /W3 /errorReport:prompt  /TaHaxor.asm
-     1>Haxor.asm(3408): warning A6001: no return from procedure
-     1>Haxor.asm(628): warning A6004: procedure argument or local not referenced : HOld
-     1>Haxor.asm(672): warning A6004: procedure argument or local not referenced : hold
-     1>Haxor.asm(672): warning A6004: procedure argument or local not referenced : hold2
-     1>Haxor.asm(1161): warning A6004: procedure argument or local not referenced : myrect
-     1>Haxor.asm(1161): warning A6004: procedure argument or local not referenced : myhWnd
-     1>Haxor.asm(1161): warning A6004: procedure argument or local not referenced : OldHandle
-     1>Haxor.asm(3082): warning A6004: procedure argument or local not referenced : brushcolouring1
-     1>Haxor.asm(3082): warning A6004: procedure argument or local not referenced : brushcolouring2
+     1>Haxor.asm(4785): warning A6001: no return from procedure
+     1>Haxor.asm(396): warning A6004: procedure argument or local not referenced : uselessparameter
+     1>Haxor.asm(711): warning A6004: procedure argument or local not referenced : HOld
+     1>Haxor.asm(755): warning A6004: procedure argument or local not referenced : hold
+     1>Haxor.asm(755): warning A6004: procedure argument or local not referenced : hold2
+     1>Haxor.asm(1382): warning A6004: procedure argument or local not referenced : myrect
+     1>Haxor.asm(1382): warning A6004: procedure argument or local not referenced : myhWnd
+     1>Haxor.asm(1382): warning A6004: procedure argument or local not referenced : OldHandle
+     1>Haxor.asm(4425): warning A6004: procedure argument or local not referenced : brushcolouring1
+     1>Haxor.asm(4425): warning A6004: procedure argument or local not referenced : brushcolouring2
        ResourceCompile:
          C:\Program Files (x86)\Windows Kits\8.1\bin\x86\rc.exe /D _UNICODE /D UNICODE /l"0x0409" /nologo /fo"Debug\resource.res" resource.rc 
        Link:
          C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"C:\Users\Arad\Documents\Assembly Project\Assembly-Project\Debug\GameAttempt.exe" /INCREMENTAL /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:\Users\Arad\Documents\Assembly Project\Assembly-Project\Debug\GameAttempt.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\Arad\Documents\Assembly Project\Assembly-Project\Debug\GameAttempt.lib" /MACHINE:X86 Debug\resource.res
          Debug\Haxor.obj
-         LINK : C:\Users\Arad\Documents\Assembly Project\Assembly-Project\Debug\GameAttempt.exe not found or not built by the last incremental link; performing full link
          GameAttempt.vcxproj -> C:\Users\Arad\Documents\Assembly Project\Assembly-Project\Debug\GameAttempt.exe
      1>Done Building Project "C:\Users\Arad\Documents\Assembly Project\Assembly-Project\GameAttempt\GameAttempt.vcxproj" (Build target(s)).
 
 Build succeeded.
 
-Time Elapsed 00:00:51.80
+Time Elapsed 00:02:13.57
