@@ -357,18 +357,17 @@ playCountdown BYTE "play Countdown.mp3",0
 stopCountdown BYTE "stop Countdown.mp3",0
 
 index BYTE 0
-laststeps DB ((TILES*3)+1) dup (-1)
+laststeps DB (TILES*3) dup (-1)
 sin sockaddr_in <>
 clientsin sockaddr_in <>
 IPAddress db "79.177.199.246",0 
 Port dd 30002	
 text db "placeholder",0
 textoffset DWORD ?
-pleaseconnectus db "connect",0
-doyouwanttoconnect db "Pairing initiated",0
-yesiamsure db "confirmed",0
-get_ready_for_ip db "Prepare for IP transfer",0
-P1Message db "You are player 1",0
+pleaseconnectus db "pair",0
+doyouwanttoconnect db "Please confirm",0
+yesiamsure db "confirm",0
+get_ready_for_ip db "Prepare for pairing",0
 expecting_IP db FALSE
 expecting_PORT db FALSE
 wsadata WSADATA <>
@@ -1803,10 +1802,6 @@ onlinefirstloop:
 	invoke crt_strcmp, offset buffer_for_sock, offset get_ready_for_ip
 	cmp eax, 0
 	je getreadyforip
-	invoke crt_strcmp, offset buffer_for_sock, offset P1Message
-	cmp eax, 0
-	je assignplayer1
-
 
 	.if expecting_PORT == TRUE
 	invoke crt_atoi, offset buffer_for_sock
@@ -1822,6 +1817,10 @@ onlinefirstloop:
 
 	invoke CreateThread, NULL, NULL, offset sendLocation,offset clientsin, NULL, NULL
 	mov connected_to_peer, TRUE
+	cmp SFX, 0
+	je onlinenosfx
+	invoke mciSendString, offset playCountdown, NULL, NULL, NULL
+onlinenosfx:
 	.endif
 
 	.if expecting_IP == TRUE
@@ -1829,31 +1828,7 @@ onlinefirstloop:
 	mov textoffset, offset clientip
 	mov expecting_PORT, TRUE
 	mov expecting_IP, FALSE
-	.endif	
-	mov ebx, offset buffer_for_sock
-	mov ecx, TILES
-secondupdate:
-	xor esi, esi
-	mov esi, [ebx]
-	shr esi, 24
-	inc ebx
-	xor edi, edi
-	mov edi, [ebx]
-	shr edi, 24
-	inc ebx
-	xor eax, eax
-	mov al, BYTE ptr[ebx]
-	inc ebx
-	cmp esi, -1
-	je onlinesecondloop
-	cmp edi, -1
-	je onlinesecondloop
-	cmp al, -1
-	je onlinesecondloop
-	invoke SetGrid, esi, edi, al
-onlinesecondloop:
-	loop secondupdate
-
+	.endif
 	.endif
 	;<no error occurs so proceed> 
 	.else 
@@ -1871,14 +1846,11 @@ onlinesecondloop:
 
 getreadyforip:
 	mov expecting_IP, TRUE
-	invoke MessageBox, hWnd, offset get_ready_for_ip, offset get_ready_for_ip, MB_OK
 	ret
 sendyes:
 	invoke crt_strlen, offset yesiamsure
 	invoke sendto, sock, offset yesiamsure, eax, 0, offset sin, sizeof sin
 	mov expecting_IP, TRUE
-	invoke MessageBox, hWnd, offset captionyesiwanttoconnect, offset captionyesiwanttoconnect, MB_OK
-	ret
 assignplayer1:
 	mov al, P1.id
 	mov Me.id, al
@@ -1935,10 +1907,6 @@ onlinegame:
 	mov eax, ONLINEGAME
 	mov status, eax
 	invoke Restart
-	cmp SFX, 0
-	je onlinenosfx
-	invoke mciSendString, offset playCountdown, NULL, NULL, NULL
-onlinenosfx:
 	mov textoffset, offset text
 	invoke WSAStartup, 101h,addr wsadata 
 	.if eax!=NULL 
@@ -3839,6 +3807,9 @@ localtiednomusic:
 	ret
 
 onlinegamepaint:
+	.if connected_to_peer == FALSE
+	ret
+	.endif
 	cmp CountDown, 0	;-1
 	je nextonlinepaint
 	invoke BeginPaint, myhWnd, addr paint
