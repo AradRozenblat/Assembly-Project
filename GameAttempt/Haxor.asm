@@ -143,7 +143,7 @@ Lighter1 DWORD ?
 Lighter2 DWORD ?
 P1 Player <1, Color1, ?, ?, ?, FACING1, VERTICAL1, HORIZONTAL1, BOOSTS1>
 P2 Player <2, Color2, ?, ?, ?, FACING2, VERTICAL2, HORIZONTAL2, BOOSTS2>
-Me Player <?, ?, ?, ?, ?, ?, ?, ?, ?>
+Me Player <2, Color2, ?, ?, ?, FACING2, VERTICAL2, HORIZONTAL2, BOOSTS2>
 MyLastKey DWORD ?
 MyNowKey DWORD ?
 MyLastKeyTime DWORD ?
@@ -356,17 +356,19 @@ stopTurn BYTE "stop Turn.mp3",0
 playCountdown BYTE "play Countdown.mp3",0
 stopCountdown BYTE "stop Countdown.mp3",0
 
-laststeps DB TILES*3 dup (-1)
+index BYTE 0
+laststeps DB ((TILES*3)+1) dup (-1)
 sin sockaddr_in <>
 clientsin sockaddr_in <>
-IPAddress db "212.179.222.94",0 
-Port dd 30001	
+IPAddress db "79.177.199.246",0 
+Port dd 30002	
 text db "placeholder",0
 textoffset DWORD ?
-pleaseconnectus db "please connect us!!!",0
-doyouwanttoconnect db "Yes do you want to connect with your friend?",0
-yesiamsure db "yes i am sure",0
-get_ready_for_ip db "Get ready for IP.",0
+pleaseconnectus db "connect",0
+doyouwanttoconnect db "Pairing initiated",0
+yesiamsure db "confirmed",0
+get_ready_for_ip db "Prepare for IP transfer",0
+P1Message db "You are player 1",0
 expecting_IP db FALSE
 expecting_PORT db FALSE
 wsadata WSADATA <>
@@ -1492,33 +1494,41 @@ clear:
 	mov P1.y, eax
 	mov eax, X2
 	mov P2.x, eax
+	mov Me.x, eax
 	mov eax, Y2
 	mov P2.y, eax
+	mov Me.y, eax
 	mov eax, FACING1
 	mov P1.facing, eax
 	mov eax, FACING2
 	mov P2.facing, eax
+	mov Me.facing, eax
 	mov al, VERTICAL1
 	mov P1.vertical, al
 	mov al, HORIZONTAL1
 	mov P1.horizontal, al
 	mov al, VERTICAL2
 	mov P2.vertical, al
+	mov Me.vertical, al
 	mov al, HORIZONTAL1
 	mov P2.horizontal, al
+	mov Me.horizontal, al
 	mov eax, Speed
 	mov P1.speed, eax
 	mov P2.speed, eax
+	mov Me.speed, eax
 	mov al, BOOSTS1
 	mov P1.boosts, al
 	mov al, BOOSTS2
 	mov P2.boosts, al
+	mov Me.boosts, al
 	mov eax, 3
 	mov CountDown, eax
 	invoke GetTickCount
 	mov CountTime, eax
 	mov BoostTime1, eax
 	mov BoostTime2, eax
+	mov MyBoostTime, eax
 	ret
 ;============================================================================
 Restart ENDP
@@ -1775,8 +1785,15 @@ firstupdate:
 	xor eax, eax
 	mov al, BYTE ptr[ebx]
 	inc ebx
+	cmp esi, -1
+	je onlinefirstloop
+	cmp edi, -1
+	je onlinefirstloop
+	cmp al, -1
+	je onlinefirstloop
 	invoke SetGrid, esi, edi, al
-loop firstupdate
+onlinefirstloop:
+	loop firstupdate
 	ret
 	.endif
 
@@ -1786,6 +1803,9 @@ loop firstupdate
 	invoke crt_strcmp, offset buffer_for_sock, offset get_ready_for_ip
 	cmp eax, 0
 	je getreadyforip
+	invoke crt_strcmp, offset buffer_for_sock, offset P1Message
+	cmp eax, 0
+	je assignplayer1
 
 
 	.if expecting_PORT == TRUE
@@ -1824,8 +1844,15 @@ secondupdate:
 	xor eax, eax
 	mov al, BYTE ptr[ebx]
 	inc ebx
+	cmp esi, -1
+	je onlinesecondloop
+	cmp edi, -1
+	je onlinesecondloop
+	cmp al, -1
+	je onlinesecondloop
 	invoke SetGrid, esi, edi, al
-loop secondupdate
+onlinesecondloop:
+	loop secondupdate
 
 	.endif
 	;<no error occurs so proceed> 
@@ -1851,6 +1878,26 @@ sendyes:
 	invoke sendto, sock, offset yesiamsure, eax, 0, offset sin, sizeof sin
 	mov expecting_IP, TRUE
 	invoke MessageBox, hWnd, offset captionyesiwanttoconnect, offset captionyesiwanttoconnect, MB_OK
+	ret
+assignplayer1:
+	mov al, P1.id
+	mov Me.id, al
+	mov eax, P1.color
+	mov Me.color, eax
+	mov eax, P1.x
+	mov Me.x, eax
+	mov eax, P1.y
+	mov Me.y, eax
+	mov eax, P1.speed
+	mov Me.speed, eax
+	mov eax, P1.facing
+	mov Me.facing, eax
+	mov al, P1.vertical
+	mov Me.vertical, al
+	mov al, P1.horizontal
+	mov Me.horizontal, al
+	mov al, P1.boosts
+	mov Me.boosts, al
 	ret
 
 newgame:
@@ -1888,10 +1935,6 @@ onlinegame:
 	mov eax, ONLINEGAME
 	mov status, eax
 	invoke Restart
-	cmp Music, 0
-	je onlinenomusic
-	invoke mciSendString, offset playDerezzed, NULL, NULL, NULL
-onlinenomusic:
 	cmp SFX, 0
 	je onlinenosfx
 	invoke mciSendString, offset playCountdown, NULL, NULL, NULL
@@ -3612,11 +3655,12 @@ localnottied1:
 
 localdead1:
 	popa
+	pop ecx
 	invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
 	cmp SFX, 0
-	je localdead2nosfx
+	je localdead1nosfx
 	invoke mciSendString, offset playApplause, NULL, NULL, NULL
-localdead2nosfx:
+localdead1nosfx:
 	mov eax, status
 	mov laststatus, eax
 	mov eax, ENDING
@@ -3731,6 +3775,7 @@ localnottied2:
 
 localdead2:
 	popa
+	pop ecx
 	invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
 	cmp SFX, 0
 	je localdead2nosfx
@@ -3749,8 +3794,8 @@ localdead2nomusic:
 	ret
 
 localnotdead2:
-	invoke SetGrid, P2.x, P2.y, P2.id
 	popa
+	invoke SetGrid, P2.x, P2.y, P2.id
 	pop ecx
 	dec ecx
 	cmp ecx, 0
@@ -3775,6 +3820,7 @@ localnotdead2:
 
 localtied:
 	popa
+	pop ecx
 	invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
 	cmp SFX, 0
 	je localtiednosfx
@@ -3820,6 +3866,12 @@ onlinecount:
 	dec CountDown
 	invoke GetTickCount
 	mov CountTime, eax
+	cmp CountDown, 0
+	jne onlinenomusic
+	cmp Music, 0
+	je onlinenomusic
+	invoke mciSendString, offset playDerezzed, NULL, NULL, NULL
+onlinenomusic:
 	ret
 
 nextonlinepaint:
@@ -3918,6 +3970,7 @@ onlinenottied:
 
 onlinedead:
 	popa
+	pop ecx
 	invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
 	cmp SFX, 0
 	je onlinedeadnosfx
@@ -3936,8 +3989,21 @@ onlinedeadnomusic:
 	ret
 
 onlinenotdead:
-	invoke SetGrid, Me.x, Me.y, Me.id
 	popa
+	mov ebx, offset laststeps
+	mov al, index
+	mov ecx, 3
+	imul ecx
+	add ebx, eax
+	mov eax, Me.x
+	mov BYTE ptr [ebx], al
+	inc ebx
+	mov eax, Me.y
+	mov BYTE ptr [ebx], al
+	inc ebx
+	mov al, Me.id
+	mov BYTE ptr [ebx], al
+	invoke SetGrid, Me.x, Me.y, Me.id
 	pop ecx
 	dec ecx
 	cmp ecx, 0
@@ -3962,6 +4028,7 @@ onlinenotdead:
 
 onlinetied:
 	popa
+	pop ecx
 	invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
 	cmp SFX, 0
 	je onlinetiednosfx
@@ -4103,7 +4170,7 @@ singlecheckalive1:
 	jne singlenottied1
 	mov eax, P2.y
 	cmp P1.y, eax
-	je singletied
+	je singletied1
 singlenottied1:
 	invoke ReadGrid, P1.x, P1.y
 	cmp al, -99
@@ -4114,6 +4181,7 @@ singlenottied1:
 
 singledead1:
 	popa
+	pop ecx
 	invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
 	cmp SFX, 0
 	je singledead1nosfx
@@ -4348,11 +4416,11 @@ singlecheckalive2:
 	jne singlenotdead2
 	mov eax, P2.y
 	cmp P1.y, eax
-	je singletied
+	je singletied2
 	jmp singlenotdead2
 
 singledead2:
-	popa
+	pop ecx
 	invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
 	cmp SFX, 0
 	je singledead2nosfx
@@ -4394,8 +4462,10 @@ singlenotdead2:
 	invoke EndPaint, myhWnd, addr paint
 	ret
 
-singletied:
+singletied1:
 	popa
+	pop ecx
+singletied2:
 	invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
 	cmp SFX, 0
 	je singletiednosfx
