@@ -54,3 +54,4 @@
 #define IDB_SINGLEGAME 63
 #define IDB_WIN 64
 #define IDB_LOSE 65
+#define IDB_ONLINEBUTTON 66

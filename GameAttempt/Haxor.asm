@@ -33,8 +33,8 @@ LEFT equ 3
 UP	equ 4
 STOP equ 5
 
-FACING1 equ 3
-FACING2 equ 1
+FACING1 equ 5
+FACING2 equ 5
 VERTICAL1 equ 0
 HORIZONTAL1 equ 1
 VERTICAL2 equ 0
@@ -98,6 +98,7 @@ P2WINS equ 62
 SINGLEGAME equ 63
 WIN equ 64
 LOSE equ 65
+ONLINEBUTTON equ 66
 
 REG1 equ 1
 DARK1 equ 3
@@ -168,6 +169,7 @@ CreditsBMH HBITMAP ?
 AudioBMH HBITMAP ?
 GraphicsBMH HBITMAP ?
 GameBMH HBITMAP ?
+OnlineGameBMH HBITMAP ?
 NewGameButtonBMH HBITMAP ?
 NewGameButtonMaskBMH HBITMAP ?
 MainMenuButtonBMH HBITMAP ?
@@ -274,7 +276,7 @@ Selected DWORD 1
 Image DWORD 1
 
 SelectorX DWORD ?
-Volume DWORD 0FFFFh
+Volume DWORD 088888888h
 BackupVolume DWORD ?
 SFX DWORD 1
 BackupSFX DWORD ?
@@ -297,6 +299,7 @@ W2Eighth DWORD ?
 W4Eighth DWORD ?
 W5Eighth DWORD ?
 W6Eighth DWORD ?
+W7Eighth DWORD ?
 H1Quarter DWORD ?
 H2Quarter DWORD ?
 H1Tenth DWORD ?
@@ -358,39 +361,213 @@ stopCountdown BYTE "stop Countdown.mp3",0
 
 index BYTE 0
 laststeps DB (TILES*3) dup (-1)
+emptybuff DB (1024) dup (-1)
 sin sockaddr_in <>
 clientsin sockaddr_in <>
-IPAddress db "79.177.199.246",0 
+IPAddress db "79.177.129.169",0 
 Port dd 30002	
 text db "placeholder",0
 textoffset DWORD ?
-pleaseconnectus db "pair",0
-doyouwanttoconnect db "Please confirm",0
-yesiamsure db "confirm",0
-get_ready_for_ip db "Prepare for pairing",0
+connectmsg db "connect",0
+pleaseconfirmmsg db "Please confirm",0
+confirmmsg db "confirm",0
+prepareforiptransfermsg db "Prepare for IP transfer",0
 expecting_IP db FALSE
 expecting_PORT db FALSE
 wsadata WSADATA <>
 clientip db 20 dup(0)
 clientport dd 0
 infobuffer DB (TILES*3) dup(-1)
-buffer_for_sock db 1024 dup(0)
-available_data db 100 dup(0)	; the amount of data available from the socket 
-actual_data_read db 100 dup(0)	; the actual amount of data read from the socket 
+buffer_for_sock db 1024 dup(-1)
+available_data db 1024 dup(0)	; the amount of data available from the socket 
+actual_data_read db 1024 dup(0)	; the actual amount of data read from the socket 
 connected_to_peer db FALSE
 sock DWORD ?
-captionyesiwanttoconnect db 'yes i am sure',0
+
+DistanceMap db sizeof grid dup(-1)
 
 .code
+getValue PROC, x:DWORD, y:DWORD
+;----------------------------------------------------------------------------
+	cmp x, 0
+	jl obstacle
+	cmp y, 0
+	jl obstacle
+	xor edx, edx
+	mov eax, WinWidth
+	mov ebx, MyD
+	div ebx
+	dec eax
+	cmp x, eax
+	jg obstacle
+	xor edx, edx
+	mov eax, WinHeight
+	div ebx
+	dec eax
+	cmp y, eax
+	jg obstacle
+	xor edx, edx
+	mov ebx, offset DistanceMap
+	mov eax, y
+	mov ecx, WinWidth
+	mul ecx
+	xor edx, edx
+	mov ecx, MyD
+	div ecx
+	add ebx, eax
+	xor eax, eax
+	mov al, BYTE ptr[ebx]
+	ret
+obstacle:
+	mov eax, -2
+	ret
+;============================================================================
+getValue ENDP
+
+mark PROC,x:dword,y:dword,d:DWORD
+;----------------------------------------------------------------------------
+checkup:
+	mov eax,y
+	dec eax
+	;invoke read_grid,x,eax
+	cmp eax,-2
+	je checkright
+setup:
+	cmp eax,-1
+	jne comparingup
+	mov eax,y
+	dec eax
+	mov ebx,d
+	inc ebx
+	push eax
+	push ebx
+	;invoke set_grid,x,eax,ebx;d+1
+	pop eax
+	pop ebx
+	invoke mark,x,eax,ebx
+	jmp checkright
+comparingup:
+	mov ebx,d
+	inc ebx
+	cmp eax,ebx
+	jge checkright
+	mov eax,y
+	dec eax
+	mov ebx,d
+	inc ebx
+	;invoke set_grid,x,eax,ebx;d+1
+	invoke mark,x,eax,ebx
+
+checkright:
+	mov eax,x
+	inc eax
+	;invoke read_grid,eax,y
+	cmp eax,-2
+	je checkdown
+setright:
+	cmp eax,-1
+	jne comparingright
+	mov eax,x
+	inc eax
+	mov ebx,d
+	inc ebx
+	push eax
+	push ebx
+	;invoke set_grid,eax,y,ebx;d+1
+	pop eax
+	pop ebx
+	invoke mark,eax,y,ebx
+	jmp checkdown
+comparingright:
+	mov ebx,d
+	inc ebx
+	cmp eax,ebx
+	jge checkdown
+	mov eax,x
+	inc eax
+	mov ebx,d
+	inc ebx
+	;invoke set_grid,eax,y,ebx;d+1
+	invoke mark,eax,y,ebx
+
+checkdown:
+	mov eax,y
+	inc eax
+	;invoke read_grid,x,eax
+	cmp eax,-2
+	je checkleft
+setdown:
+	cmp eax,-1
+	jne comparingdown
+	mov eax,y
+	inc eax
+	mov ebx,d
+	inc ebx
+	push eax
+	push ebx
+	;invoke set_grid,x,eax,ebx;d+1
+	pop eax
+	pop ebx
+	invoke mark,x,eax,ebx
+	jmp checkleft
+comparingdown:
+	mov ebx,d
+	inc ebx
+	cmp eax,ebx
+	jge checkleft
+	mov eax,y
+	inc eax
+	mov ebx,d
+	inc ebx
+	;invoke set_grid,x,eax,ebx;d+1
+	invoke mark,x,eax,ebx
+
+checkleft:
+	mov eax,x
+	dec eax
+	;invoke read_grid,eax,y
+	cmp eax,-2
+	jne returntolast
+setleft:
+	cmp eax,-1
+	jne comparingleft
+	mov eax,x
+	dec eax
+	mov ebx,d
+	inc ebx
+	push eax
+	push ebx
+	;invoke set_grid,eax,y,ebx;d+1
+	pop eax
+	pop ebx
+	invoke mark,eax,y,ebx
+	jmp returntolast
+comparingleft:
+	mov ebx,d
+	inc ebx
+	cmp eax,ebx
+	jge returntolast
+	mov eax,x
+	dec eax
+	mov ebx,d
+	inc ebx
+	;invoke set_grid,eax,y,ebx;d+1
+	invoke mark,eax,y,ebx
+returntolast:
+	ret
+;============================================================================
+mark ENDP
 
 sendLocation PROC, uselessparameter:DWORD
 ;----------------------------------------------------------------------------
 again:
-	mov ebx, offset laststeps
-	mov edx, offset infobuffer
-	invoke RtlMoveMemory, offset infobuffer, offset laststeps, sizeof laststeps
-	invoke sendto, sock, offset infobuffer, sizeof infobuffer, 0, offset clientsin, sizeof clientsin
 	invoke Sleep,10
+	xor edx, edx
+	mov al, index
+	mov ebx, 3
+	mul ebx
+	invoke RtlMoveMemory, offset infobuffer, offset laststeps, TILES*3
+	invoke sendto, sock, offset infobuffer, 1024, 0, offset clientsin, sizeof clientsin
 	jmp again
 	ret
 ;============================================================================
@@ -557,6 +734,8 @@ Scale PROC, w:DWORD
 	mov W5Eighth, eax
 	add eax, W1Eighth
 	mov W6Eighth, eax
+	add eax, W1Eighth
+	mov W7Eighth, eax
 	mov eax, w
 	mov ebx, 3
 	xor edx, edx
@@ -881,6 +1060,31 @@ localnocount:
 	ret
 
 onlinedraw:
+	.if connected_to_peer == FALSE
+	mov eax, Frame
+	dec eax
+	imul eax, 1000
+	invoke DrawImage, hdc, OnlineGameBMH, W6Eighth, H8Tenth, eax, 0, W2Eighth, H2Tenth, 1000, 750
+	invoke GetTickCount
+	mov NowFrameTime, eax
+	sub eax, LastFrameTime
+	cmp eax, 60
+	jge onlinegifdraw
+	ret
+onlinegifdraw:
+	mov eax, NowFrameTime
+	mov LastFrameTime, eax
+	mov eax, Frame
+	inc eax
+	mov Frame, eax
+	cmp Frame, 60
+	jg onlinegifloop
+	ret
+onlinegifloop:
+	mov eax, 1
+	mov Frame, eax
+	ret
+	.endif
 	invoke DrawImage, hdc, CurrentBMH, 0, 0, 0, 0, WinWidth, WinHeight, 1000, 750
 	cmp CountDown, 0	;-1
 	je onlinenocount
@@ -1750,106 +1954,130 @@ closing:
 	invoke ExitProcess, 0
 
 socketing:
-	cmp status, ONLINEGAME
-	je connecting
-	ret
+	;cmp status, ONLINEGAME
+	;je connecting
+	;ret
 connecting:
 	mov eax,lParam 
 	.if ax==FD_CONNECT	; the low word of lParam contains the event code. 
-	shr eax,16	; the error code (if any) is in the high word of lParam 
-	.if ax==NULL 
-	;<no error occurs so proceed> 
-	.else 
-	invoke ExitProcess, 1
-	.endif 
+		shr eax,16	; the error code (if any) is in the high word of lParam 
+		.if ax==NULL 
+			;<no error occurs so proceed> 
+		.else 
+			invoke ExitProcess, 1
+		.endif
 	.elseif	ax==FD_READ 
-	shr eax,16 
-	.if ax==NULL 
-	invoke ioctlsocket, sock, FIONREAD, addr available_data 
-	.if eax==NULL	
-	invoke recvfrom, sock, offset buffer_for_sock, 1024, 0,NULL,NULL
+		shr eax,16
+		.if ax==NULL 
+			invoke ioctlsocket, sock, FIONREAD, addr available_data
+			.if eax==NULL
+				invoke RtlMoveMemory, offset buffer_for_sock, offset emptybuff, 1024
+				invoke recvfrom, sock, offset buffer_for_sock, 1024, 0, NULL, NULL
 
-	.if connected_to_peer == TRUE
-	mov ebx, offset buffer_for_sock
-	mov ecx, TILES
-firstupdate:
-	xor esi, esi
-	mov esi, [ebx]
-	shr esi, 24
-	inc ebx
-	xor edi, edi
-	mov edi, [ebx]
-	shr edi, 24
-	inc ebx
-	xor eax, eax
-	mov al, BYTE ptr[ebx]
-	inc ebx
-	cmp esi, -1
-	je onlinefirstloop
-	cmp edi, -1
-	je onlinefirstloop
-	cmp al, -1
-	je onlinefirstloop
-	invoke SetGrid, esi, edi, al
-onlinefirstloop:
-	loop firstupdate
+				.if connected_to_peer == TRUE
+					mov ebx, offset buffer_for_sock
+					mov ecx, TILES
+				update:
+					xor esi, esi
+					mov eax, [ebx]
+					shr eax, 24
+					cmp al, -1
+					je onlineloop3
+					mov esi, eax
+					inc ebx
+					xor edi, edi
+					mov eax, [ebx]
+					shr eax, 24
+					cmp al, -1
+					je onlineloop2
+					mov edi, eax
+					inc ebx
+					xor eax, eax
+					mov al, BYTE ptr[ebx]
+					cmp al, -1
+					je onlineloop1
+					inc ebx
+					invoke SetGrid, esi, edi, al
+					loop update
+					ret
+				onlineloop3:
+					add ebx, 3
+					loop update
+					ret
+				onlineloop2:
+					add ebx, 2
+					loop update
+					ret
+				onlineloop1:
+					add ebx, 1
+					loop update
+					ret
+				.endif
+
+				invoke crt_strcmp, offset buffer_for_sock, offset pleaseconfirmmsg
+				cmp eax, 0
+				je sendconfirm
+				invoke crt_strcmp, offset buffer_for_sock, offset prepareforiptransfermsg
+				cmp eax, 0
+				je prepareforiptransfer
+
+				.if expecting_PORT == TRUE
+			invoke crt_atoi, offset buffer_for_sock
+			mov clientport, eax
+			mov expecting_PORT, FALSE
+
+			mov clientsin.sin_family, AF_INET 
+			invoke htons, clientport	; convert port number into network byte order first 
+			mov clientsin.sin_port,ax	; note that this member is a word-size param. 
+			invoke inet_addr, addr clientip	; convert the IP address into network byte order 
+			mov clientsin.sin_addr,eax 
+
+			invoke CreateThread, NULL, NULL, offset sendLocation,offset clientsin, NULL, NULL
+			mov connected_to_peer, TRUE
+			mov ebx, offset laststeps
+			mov eax, Me.x
+			mov BYTE ptr [ebx], al
+			inc ebx
+			mov eax, Me.y
+			mov BYTE ptr [ebx], al
+			inc ebx
+			mov al, Me.id
+			mov BYTE ptr [ebx], al
+			cmp SFX, 0
+			je onlinenosfx
+			;invoke mciSendString, offset playCountdown, NULL, NULL, NULL
+		onlinenosfx:
+			invoke GetTickCount
+			mov CountTime, eax
+				.endif
+
+				.if expecting_IP == TRUE
+		invoke crt_strcpy, offset clientip, offset buffer_for_sock
+		mov textoffset, offset clientip
+		mov expecting_PORT, TRUE
+		mov expecting_IP, FALSE
+				.endif
+			.endif
+		;<no error occurs so proceed> 
+		.else 
+		invoke ExitProcess, 1
+		.endif 
+	.elseif   ax==FD_CLOSE
+		shr eax,16 
+		.if ax==NULL 
+		;<no error occurs so proceed> 
+		.else 
+		invoke ExitProcess, 1
+		.endif 
+	.endif 
 	ret
-	.endif
 
-	invoke crt_strcmp, offset buffer_for_sock, offset doyouwanttoconnect
-	cmp eax, 0
-	je sendyes
-	invoke crt_strcmp, offset buffer_for_sock, offset get_ready_for_ip
-	cmp eax, 0
-	je getreadyforip
-
-	.if expecting_PORT == TRUE
-	invoke crt_atoi, offset buffer_for_sock
-	mov clientport, eax
-	mov expecting_PORT, FALSE
-
-	
-	mov clientsin.sin_family, AF_INET 
-	invoke htons, clientport	; convert port number into network byte order first 
-	mov clientsin.sin_port,ax	; note that this member is a word-size param. 
-	invoke inet_addr, addr clientip	; convert the IP address into network byte order 
-	mov clientsin.sin_addr,eax 
-
-	invoke CreateThread, NULL, NULL, offset sendLocation,offset clientsin, NULL, NULL
-	mov connected_to_peer, TRUE
-	cmp SFX, 0
-	je onlinenosfx
-	invoke mciSendString, offset playCountdown, NULL, NULL, NULL
-onlinenosfx:
-	.endif
-
-	.if expecting_IP == TRUE
-	invoke crt_strcpy, offset clientip, offset buffer_for_sock
-	mov textoffset, offset clientip
-	mov expecting_PORT, TRUE
-	mov expecting_IP, FALSE
-	.endif
-	.endif
-	;<no error occurs so proceed> 
-	.else 
-	invoke ExitProcess, 1
-	.endif 
-	.elseif   ax==FD_CLOSE 
-	shr eax,16 
-	.if ax==NULL 
-	;<no error occurs so proceed> 
-	.else 
-	invoke ExitProcess, 1
-	.endif 
-	.endif 
-	ret
-
-getreadyforip:
+prepareforiptransfer:
 	mov expecting_IP, TRUE
 	ret
-sendyes:
-	invoke crt_strlen, offset yesiamsure
-	invoke sendto, sock, offset yesiamsure, eax, 0, offset sin, sizeof sin
+sendconfirm:
+	invoke crt_strlen, offset confirmmsg
+	invoke sendto, sock, offset confirmmsg, eax, 0, offset sin, sizeof sin
 	mov expecting_IP, TRUE
 assignplayer1:
 	mov al, P1.id
@@ -1921,7 +2149,7 @@ onlinegame:
 	.else 
 	invoke ExitProcess, 1
 	.endif
-	invoke WSAAsyncSelect, sock, hWnd,WM_SOCKET, FD_CONNECT+FD_READ+FD_CLOSE 
+	invoke WSAAsyncSelect, sock, hWnd,WM_SOCKET, FD_READ
 	; Register interest in connect, read and close events. 
 	.if eax==SOCKET_ERROR 
 	invoke WSAGetLastError
@@ -1934,8 +2162,8 @@ onlinegame:
 	mov sin.sin_port,ax	; note that this member is a word-size param. 
 	invoke inet_addr, addr IPAddress	; convert the IP address into network byte order 
 	mov sin.sin_addr,eax 
-	invoke crt_strlen, offset pleaseconnectus
-	invoke sendto,sock, offset pleaseconnectus, eax, 0, offset sin, sizeof sin
+	invoke crt_strlen, offset connectmsg
+	invoke sendto,sock, offset connectmsg, eax, 0, offset sin, sizeof sin
 	invoke WSAGetLastError
 	ret
 
@@ -1999,7 +2227,7 @@ resume:
 	mov Selected, eax
 	;mov eax, status
 	;mov laststatus, eax
-	mov eax, GAME
+	mov eax, laststatus
 	mov status, eax
 	invoke StopMusic
 	cmp Music, 0
@@ -2020,8 +2248,8 @@ credits:
 pausing:
 	mov eax, 1
 	mov Selected, eax
-	;mov eax, status
-	;mov laststatus, eax
+	mov eax, status
+	mov laststatus, eax
 	mov eax, PAUSING
 	mov status, eax
 	invoke mciSendString, offset pauseDerezzed, NULL, NULL, NULL
@@ -2942,7 +3170,7 @@ onlineboost:
 	dec Me.boosts
 	cmp SFX, 0
 	je onlineboostret
-	invoke mciSendString, offset playBoost, NULL, NULL, NULL
+	;invoke mciSendString, offset playBoost, NULL, NULL, NULL
 onlineboostret:
 	ret
 onlinemovement:
@@ -3808,6 +4036,20 @@ localtiednomusic:
 
 onlinegamepaint:
 	.if connected_to_peer == FALSE
+	invoke BeginPaint, myhWnd, addr paint
+	mov hdc, eax
+	invoke CreateCompatibleDC, hdc
+	mov mem_hdc, eax
+	invoke CreateCompatibleBitmap, hdc, WinWidth, WinHeight
+	mov mem_hbm, eax
+	invoke SelectObject, mem_hdc, mem_hbm
+	mov OldHandle, eax
+	invoke DrawBG, status, rect, mem_hdc, myhWnd
+	invoke BitBlt, hdc, 0, 0, WinWidth, WinHeight, mem_hdc, 0, 0, SRCCOPY
+	invoke SelectObject, mem_hdc, OldHandle
+	invoke DeleteObject, mem_hbm
+	invoke DeleteDC, mem_hdc
+	invoke EndPaint, myhWnd, addr paint
 	ret
 	.endif
 	cmp CountDown, 0	;-1
@@ -3841,13 +4083,13 @@ onlinecount:
 	jne onlinenomusic
 	cmp Music, 0
 	je onlinenomusic
-	invoke mciSendString, offset playDerezzed, NULL, NULL, NULL
+	;invoke mciSendString, offset playDerezzed, NULL, NULL, NULL
 onlinenomusic:
 	ret
 
 nextonlinepaint:
 	;mov eax, Speed
-	;cmp P1.speed, eax
+	;cmp Me.speed, eax
 	;je notboosting1
 	;invoke GetTickCount
 	;sub eax, BoostTime1
@@ -3890,19 +4132,19 @@ onlinenext:
 	je onlinenotdead
 
 onlinemoveleft:
-	dec P1.x
+	dec Me.x
 	jmp onlinecheckalive
 
 onlinemoveright:
-	inc P1.x
+	inc Me.x
 	jmp onlinecheckalive
 
 onlinemovedown:
-	inc P1.y
+	inc Me.y
 	jmp onlinecheckalive
 
 onlinemoveup:
-	dec P1.y
+	dec Me.y
 	jmp onlinecheckalive
 
 onlinecheckalive:
@@ -3925,12 +4167,12 @@ onlinecheckalive:
 	dec eax
 	cmp Me.y, eax
 	jg onlinedead
-	mov eax, P2.x
-	cmp Me.x, eax
-	jne onlinenottied
-	mov eax, P2.y
-	cmp Me.y, eax
-	je onlinetied
+	;mov eax, P2.x
+	;cmp Me.x, eax
+	;jne onlinenottied
+	;mov eax, P2.y
+	;cmp Me.y, eax
+	;je onlinetied
 onlinenottied:
 	invoke ReadGrid, Me.x, Me.y
 	cmp al, -99
@@ -3942,10 +4184,10 @@ onlinenottied:
 onlinedead:
 	popa
 	pop ecx
-	invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
+	;invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
 	cmp SFX, 0
 	je onlinedeadnosfx
-	invoke mciSendString, offset playApplause, NULL, NULL, NULL
+	;invoke mciSendString, offset playApplause, NULL, NULL, NULL
 onlinedeadnosfx:
 	mov eax, status
 	mov laststatus, eax
@@ -3975,6 +4217,7 @@ onlinenotdead:
 	mov al, Me.id
 	mov BYTE ptr [ebx], al
 	invoke SetGrid, Me.x, Me.y, Me.id
+	inc index
 	pop ecx
 	dec ecx
 	cmp ecx, 0
@@ -4000,10 +4243,10 @@ onlinenotdead:
 onlinetied:
 	popa
 	pop ecx
-	invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
+	;invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
 	cmp SFX, 0
 	je onlinetiednosfx
-	invoke mciSendString, offset playApplause, NULL, NULL, NULL
+	;invoke mciSendString, offset playApplause, NULL, NULL, NULL
 onlinetiednosfx:
 	mov eax, status
 	mov laststatus, eax
@@ -4616,10 +4859,14 @@ invoke Get_Handle_To_Mask_Bitmap, LocalButtonBMH, 0ffffffh	;white
 mov LocalButtonMaskBMH, eax
 
 invoke GetModuleHandle, NULL
-invoke LoadBitmap, eax, ONLINEGAME
+invoke LoadBitmap, eax, ONLINEBUTTON
 mov OnlineButtonBMH, eax
 invoke Get_Handle_To_Mask_Bitmap, OnlineButtonBMH, 0ffffffh	;white
 mov OnlineButtonMaskBMH, eax
+
+invoke GetModuleHandle, NULL
+invoke LoadBitmap, eax, ONLINEGAME
+mov OnlineGameBMH, eax
 
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, SINGLEGAME
