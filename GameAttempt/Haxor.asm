@@ -113,7 +113,7 @@ BOOSTS2 equ 3
 WINWIDTH equ 1000
 
 WM_SOCKET equ WM_USER+100
-TILES equ 20
+TILES equ 100
 
 .data
 
@@ -359,13 +359,13 @@ stopTurn BYTE "stop Turn.mp3",0
 playCountdown BYTE "play Countdown.mp3",0
 stopCountdown BYTE "stop Countdown.mp3",0
 
-index BYTE 0
-laststeps DB (TILES*3) dup (-1)
-emptybuff DB (1024) dup (-1)
+index BYTE 1
+laststeps DB 1024 dup (-1)
+emptybuff DB 1024 dup (-1)
 sin sockaddr_in <>
 clientsin sockaddr_in <>
-IPAddress db "79.177.129.169",0 
-Port dd 30002	
+IPAddress db "212.179.222.94",0 
+Port dd 30001	
 text db "placeholder",0
 textoffset DWORD ?
 connectmsg db "connect",0
@@ -377,7 +377,7 @@ expecting_PORT db FALSE
 wsadata WSADATA <>
 clientip db 20 dup(0)
 clientport dd 0
-infobuffer DB (TILES*3) dup(-1)
+infobuffer DB 1024 dup(-1)
 buffer_for_sock db 1024 dup(-1)
 available_data db 1024 dup(0)	; the amount of data available from the socket 
 actual_data_read db 1024 dup(0)	; the actual amount of data read from the socket 
@@ -562,12 +562,12 @@ sendLocation PROC, uselessparameter:DWORD
 ;----------------------------------------------------------------------------
 again:
 	invoke Sleep,10
-	xor edx, edx
-	mov al, index
-	mov ebx, 3
-	mul ebx
-	invoke RtlMoveMemory, offset infobuffer, offset laststeps, TILES*3
+	invoke RtlMoveMemory, offset infobuffer, offset laststeps, 1024
 	invoke sendto, sock, offset infobuffer, 1024, 0, offset clientsin, sizeof clientsin
+	;invoke RtlMoveMemory, offset laststeps, offset emptybuff, 1024
+	;invoke RtlMoveMemory, offset infobuffer, offset emptybuff, 1024
+	;xor eax, eax
+	;mov index, al
 	jmp again
 	ret
 ;============================================================================
@@ -4204,9 +4204,11 @@ onlinedeadnomusic:
 onlinenotdead:
 	popa
 	mov ebx, offset laststeps
+	xor eax, eax
+	xor edx, edx
 	mov al, index
 	mov ecx, 3
-	imul ecx
+	mul ecx
 	add ebx, eax
 	mov eax, Me.x
 	mov BYTE ptr [ebx], al
@@ -4218,6 +4220,11 @@ onlinenotdead:
 	mov BYTE ptr [ebx], al
 	invoke SetGrid, Me.x, Me.y, Me.id
 	inc index
+	cmp index, TILES
+	jl nottileloop
+	xor eax, eax
+	mov index, al
+nottileloop:
 	pop ecx
 	dec ecx
 	cmp ecx, 0
