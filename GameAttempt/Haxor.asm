@@ -113,7 +113,7 @@ BOOSTS2 equ 3
 WINWIDTH equ 1000
 
 WM_SOCKET equ WM_USER+100
-TILES equ 100
+TILES equ 127
 
 .data
 
@@ -360,12 +360,12 @@ playCountdown BYTE "play Countdown.mp3",0
 stopCountdown BYTE "stop Countdown.mp3",0
 
 index BYTE 1
-laststeps DB 1024 dup (-1)
-emptybuff DB 1024 dup (-1)
+laststeps DB TILES*3 dup (-1)
+emptybuff DB TILES*3 dup (-1)
 sin sockaddr_in <>
 clientsin sockaddr_in <>
-IPAddress db "212.179.222.94",0 
-Port dd 30001	
+IPAddress db "149.78.95.151",0 
+Port dd 5006
 text db "placeholder",0
 textoffset DWORD ?
 connectmsg db "connect",0
@@ -377,186 +377,16 @@ expecting_PORT db FALSE
 wsadata WSADATA <>
 clientip db 20 dup(0)
 clientport dd 0
-infobuffer DB 1024 dup(-1)
-buffer_for_sock db 1024 dup(-1)
-available_data db 1024 dup(0)	; the amount of data available from the socket 
-actual_data_read db 1024 dup(0)	; the actual amount of data read from the socket 
+infobuffer DB TILES*3 dup(-1)
+buffer_for_sock db TILES*3 dup(-1)
+available_data db TILES*3 dup(0)	; the amount of data available from the socket 
+actual_data_read db TILES*3 dup(0)	; the actual amount of data read from the socket 
 connected_to_peer db FALSE
 sock DWORD ?
 
 DistanceMap db sizeof grid dup(-1)
 
 .code
-getValue PROC, x:DWORD, y:DWORD
-;----------------------------------------------------------------------------
-	cmp x, 0
-	jl obstacle
-	cmp y, 0
-	jl obstacle
-	xor edx, edx
-	mov eax, WinWidth
-	mov ebx, MyD
-	div ebx
-	dec eax
-	cmp x, eax
-	jg obstacle
-	xor edx, edx
-	mov eax, WinHeight
-	div ebx
-	dec eax
-	cmp y, eax
-	jg obstacle
-	xor edx, edx
-	mov ebx, offset DistanceMap
-	mov eax, y
-	mov ecx, WinWidth
-	mul ecx
-	xor edx, edx
-	mov ecx, MyD
-	div ecx
-	add ebx, eax
-	xor eax, eax
-	mov al, BYTE ptr[ebx]
-	ret
-obstacle:
-	mov eax, -2
-	ret
-;============================================================================
-getValue ENDP
-
-mark PROC,x:dword,y:dword,d:DWORD
-;----------------------------------------------------------------------------
-checkup:
-	mov eax,y
-	dec eax
-	;invoke read_grid,x,eax
-	cmp eax,-2
-	je checkright
-setup:
-	cmp eax,-1
-	jne comparingup
-	mov eax,y
-	dec eax
-	mov ebx,d
-	inc ebx
-	push eax
-	push ebx
-	;invoke set_grid,x,eax,ebx;d+1
-	pop eax
-	pop ebx
-	invoke mark,x,eax,ebx
-	jmp checkright
-comparingup:
-	mov ebx,d
-	inc ebx
-	cmp eax,ebx
-	jge checkright
-	mov eax,y
-	dec eax
-	mov ebx,d
-	inc ebx
-	;invoke set_grid,x,eax,ebx;d+1
-	invoke mark,x,eax,ebx
-
-checkright:
-	mov eax,x
-	inc eax
-	;invoke read_grid,eax,y
-	cmp eax,-2
-	je checkdown
-setright:
-	cmp eax,-1
-	jne comparingright
-	mov eax,x
-	inc eax
-	mov ebx,d
-	inc ebx
-	push eax
-	push ebx
-	;invoke set_grid,eax,y,ebx;d+1
-	pop eax
-	pop ebx
-	invoke mark,eax,y,ebx
-	jmp checkdown
-comparingright:
-	mov ebx,d
-	inc ebx
-	cmp eax,ebx
-	jge checkdown
-	mov eax,x
-	inc eax
-	mov ebx,d
-	inc ebx
-	;invoke set_grid,eax,y,ebx;d+1
-	invoke mark,eax,y,ebx
-
-checkdown:
-	mov eax,y
-	inc eax
-	;invoke read_grid,x,eax
-	cmp eax,-2
-	je checkleft
-setdown:
-	cmp eax,-1
-	jne comparingdown
-	mov eax,y
-	inc eax
-	mov ebx,d
-	inc ebx
-	push eax
-	push ebx
-	;invoke set_grid,x,eax,ebx;d+1
-	pop eax
-	pop ebx
-	invoke mark,x,eax,ebx
-	jmp checkleft
-comparingdown:
-	mov ebx,d
-	inc ebx
-	cmp eax,ebx
-	jge checkleft
-	mov eax,y
-	inc eax
-	mov ebx,d
-	inc ebx
-	;invoke set_grid,x,eax,ebx;d+1
-	invoke mark,x,eax,ebx
-
-checkleft:
-	mov eax,x
-	dec eax
-	;invoke read_grid,eax,y
-	cmp eax,-2
-	jne returntolast
-setleft:
-	cmp eax,-1
-	jne comparingleft
-	mov eax,x
-	dec eax
-	mov ebx,d
-	inc ebx
-	push eax
-	push ebx
-	;invoke set_grid,eax,y,ebx;d+1
-	pop eax
-	pop ebx
-	invoke mark,eax,y,ebx
-	jmp returntolast
-comparingleft:
-	mov ebx,d
-	inc ebx
-	cmp eax,ebx
-	jge returntolast
-	mov eax,x
-	dec eax
-	mov ebx,d
-	inc ebx
-	;invoke set_grid,eax,y,ebx;d+1
-	invoke mark,eax,y,ebx
-returntolast:
-	ret
-;============================================================================
-mark ENDP
 
 sendLocation PROC, uselessparameter:DWORD
 ;----------------------------------------------------------------------------
@@ -1732,6 +1562,9 @@ clear:
 	mov BoostTime1, eax
 	mov BoostTime2, eax
 	mov MyBoostTime, eax
+	invoke RtlMoveMemory, offset buffer_for_sock, offset emptybuff, 1024
+	invoke RtlMoveMemory, offset laststeps, offset emptybuff, 1024
+	invoke RtlMoveMemory, offset infobuffer, offset emptybuff, 1024
 	ret
 ;============================================================================
 Restart ENDP
@@ -1971,7 +1804,7 @@ connecting:
 		.if ax==NULL 
 			invoke ioctlsocket, sock, FIONREAD, addr available_data
 			.if eax==NULL
-				invoke RtlMoveMemory, offset buffer_for_sock, offset emptybuff, 1024
+				;invoke RtlMoveMemory, offset buffer_for_sock, offset emptybuff, 1024
 				invoke recvfrom, sock, offset buffer_for_sock, 1024, 0, NULL, NULL
 
 				.if connected_to_peer == TRUE
@@ -1997,7 +1830,9 @@ connecting:
 					cmp al, -1
 					je onlineloop1
 					inc ebx
+					pusha
 					invoke SetGrid, esi, edi, al
+					popa
 					loop update
 					ret
 				onlineloop3:
@@ -2084,11 +1919,11 @@ assignplayer1:
 	mov Me.id, al
 	mov eax, P1.color
 	mov Me.color, eax
-	mov eax, P1.x
+	mov eax, X1
 	mov Me.x, eax
-	mov eax, P1.y
+	mov eax, Y1
 	mov Me.y, eax
-	mov eax, P1.speed
+	mov eax, Speed
 	mov Me.speed, eax
 	mov eax, P1.facing
 	mov Me.facing, eax
@@ -4218,7 +4053,9 @@ onlinenotdead:
 	inc ebx
 	mov al, Me.id
 	mov BYTE ptr [ebx], al
+	pusha
 	invoke SetGrid, Me.x, Me.y, Me.id
+	popa
 	inc index
 	cmp index, TILES
 	jl nottileloop
