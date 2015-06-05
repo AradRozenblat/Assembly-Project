@@ -33,8 +33,8 @@ LEFT equ 3
 UP	equ 4
 STOP equ 5
 
-FACING1 equ 5
-FACING2 equ 5
+FACING1 equ 3
+FACING2 equ 1
 VERTICAL1 equ 0
 HORIZONTAL1 equ 1
 VERTICAL2 equ 0
@@ -2092,7 +2092,6 @@ pausing:
 	je pausingnomusic
 	invoke PlayMusic
 pausingnomusic:
-	ret
 	ret
 
 backing:
