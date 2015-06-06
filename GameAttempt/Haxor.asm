@@ -305,7 +305,7 @@ Selected DWORD 1
 Image DWORD 1
 
 SelectorX DWORD ?
-Volume DWORD 088888888h
+Volume DWORD 07fff7fffh
 BackupVolume DWORD ?
 SFX DWORD 1
 BackupSFX DWORD ?
@@ -430,6 +430,22 @@ DistanceMap db sizeof grid dup(-1)
 
 .code
 
+setSelectorX PROC, Vol:DWORD
+;----------------------------------------------------------------------------
+	mov eax, Vol
+	shr eax, 16
+	mov ebx, W8Sixteenth
+	xor edx, edx
+	mul ebx
+	mov ebx, 0ffffh
+	xor edx, edx
+	div ebx
+	add eax, W4Sixteenth
+	mov SelectorX, eax
+	ret
+;============================================================================
+setSelectorX ENDP
+
 sendLocation PROC, uselessparameter:DWORD
 ;----------------------------------------------------------------------------
 again:
@@ -533,11 +549,7 @@ ChangeTrack ENDP
 ResizeWindow PROC, newwidth:DWORD, newheight:DWORD
 ;--------------------------------------------------------------------------------
 	invoke DestroyWindow, hWnd
-	mov eax, newwidth
-	add eax, 15
-	mov ebx, newheight
-	add ebx, 40
-	invoke CreateWindowExA, WS_EX_COMPOSITED, addr ClassName, addr windowTitle, WS_SYSMENU, 0, 0, eax, ebx, 0, 0, 0, 0 ;Create the window
+	invoke CreateWindowExA, WS_EX_COMPOSITED, addr ClassName, addr windowTitle, WS_SYSMENU, 0, 0, newwidth, newheight, 0, 0, 0, 0 ;Create the window
 	mov hWnd, eax ;Save the handle
 	invoke ShowWindow, eax, SW_SHOW ;Show it
 	invoke SetTimer, hWnd, MAIN_TIMER_ID, 20, NULL ;Set the repaint timer
@@ -718,6 +730,7 @@ Scale PROC, w:DWORD
 	mov HUDHeight, eax
 	add eax, 40
 	mov RealHUDHeight, eax
+	invoke setSelectorX, Volume
 	ret
 ;================================================================================
 Scale ENDP
@@ -896,9 +909,9 @@ gamebackselect:
 
 nextgame:
 	invoke DrawImage_WithMask, hdc, LocalButtonBMH, LocalButtonMaskBMH, W4Sixteenth, H1Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
-	invoke DrawImage_WithMask, hdc, OnlineButtonBMH, OnlineButtonMaskBMH,  W4Sixteenth, H2Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
-	invoke DrawImage_WithMask, hdc, SingleButtonBMH, SingleButtonMaskBMH,  W4Sixteenth, H3Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
-	invoke DrawImage_WithMask, hdc, BackButtonBMH, BackButtonMaskBMH,  W4Sixteenth, H4Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, OnlineButtonBMH, OnlineButtonMaskBMH, W4Sixteenth, H2Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, SingleButtonBMH, SingleButtonMaskBMH, W4Sixteenth, H3Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, BackButtonBMH, BackButtonMaskBMH, W4Sixteenth, H4Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
 	invoke GetTickCount
 	mov NowFrameTime, eax
 	sub eax, LastFrameTime
@@ -921,15 +934,15 @@ gamegifloop:
 
 localdraw:
 	invoke DrawImage, hdc, CurrentBMH, 0, 0, 0, 0, WinWidth, WinHeight, 1000, 750
-	invoke DrawImage_WithMask, hdc, SmallHighlightBMH, SmallHighlightMaskBMH, W12Sixteenth, WinHeight, 0, 0, W4Sixteenth, H1Tenth, 913, 346
+	;invoke DrawImage_WithMask, hdc, SmallHighlightBMH, SmallHighlightMaskBMH, W12Sixteenth, WinHeight, 0, 0, W4Sixteenth, H1Tenth, 913, 346
 	invoke DrawImage_WithMask, hdc, P1ButtonBMH, P1ButtonMaskBMH, W12Sixteenth, WinHeight, 0, 0, W4Sixteenth, H1Tenth, 913, 346
-	invoke DrawImage_WithMask, hdc, SmallHighlightBMH, SmallHighlightMaskBMH, W12Sixteenth, H11Tenth, 0, 0, W4Sixteenth, H1Tenth, 913, 346
+	;invoke DrawImage_WithMask, hdc, SmallHighlightBMH, SmallHighlightMaskBMH, W12Sixteenth, H11Tenth, 0, 0, W4Sixteenth, H1Tenth, 913, 346
 	invoke DrawImage_WithMask, hdc, BoostsButtonBMH, BoostsButtonMaskBMH, W12Sixteenth, H11Tenth, 0, 0, W4Sixteenth, H1Tenth, 913, 346
-	invoke DrawImage_WithMask, hdc, SmallHighlightBMH, SmallHighlightMaskBMH, 0, WinHeight, 0, 0, W4Sixteenth, H1Tenth, 913, 346
+	;invoke DrawImage_WithMask, hdc, SmallHighlightBMH, SmallHighlightMaskBMH, 0, WinHeight, 0, 0, W4Sixteenth, H1Tenth, 913, 346
 	invoke DrawImage_WithMask, hdc, P2ButtonBMH, P2ButtonMaskBMH, 0, WinHeight, 0, 0, W4Sixteenth, H1Tenth, 913, 346
-	invoke DrawImage_WithMask, hdc, SmallHighlightBMH, SmallHighlightMaskBMH, 0, H11Tenth, 0, 0, W4Sixteenth, H1Tenth, 913, 346
+	;invoke DrawImage_WithMask, hdc, SmallHighlightBMH, SmallHighlightMaskBMH, 0, H11Tenth, 0, 0, W4Sixteenth, H1Tenth, 913, 346
 	invoke DrawImage_WithMask, hdc, BoostsButtonBMH, BoostsButtonMaskBMH, 0, H11Tenth, 0, 0, W4Sixteenth, H1Tenth, 913, 346
-	invoke DrawImage_WithMask, hdc, VSHighlightBMH, VSHighlightMaskBMH, W7Sixteenth, WinHeight, 0, 0, W2Sixteenth, H2Tenth, 463, 679
+	;invoke DrawImage_WithMask, hdc, VSHighlightBMH, VSHighlightMaskBMH, W7Sixteenth, WinHeight, 0, 0, W2Sixteenth, H2Tenth, 463, 679
 	invoke DrawImage_WithMask, hdc, VSButtonBMH, VSButtonMaskBMH, W7Sixteenth, WinHeight, 0, 0, W2Sixteenth, H2Tenth, 463, 679
 
 localdraw1:
@@ -1053,13 +1066,13 @@ onlinewaitinggifloop:
 	ret
 	.endif
 	invoke DrawImage, hdc, CurrentBMH, 0, 0, 0, 0, WinWidth, WinHeight, 1000, 750
-	invoke DrawImage_WithMask, hdc, SmallHighlightBMH, SmallHighlightMaskBMH, W12Sixteenth, WinHeight, 0, 0, W4Sixteenth, H1Tenth, 913, 346
+	;invoke DrawImage_WithMask, hdc, SmallHighlightBMH, SmallHighlightMaskBMH, W12Sixteenth, WinHeight, 0, 0, W4Sixteenth, H1Tenth, 913, 346
 	invoke DrawImage_WithMask, hdc, YouButtonBMH, YouButtonMaskBMH, W12Sixteenth, WinHeight, 0, 0, W4Sixteenth, H1Tenth, 913, 346
-	invoke DrawImage_WithMask, hdc, SmallHighlightBMH, SmallHighlightMaskBMH, W12Sixteenth, H11Tenth, 0, 0, W4Sixteenth, H1Tenth, 913, 346
+	;invoke DrawImage_WithMask, hdc, SmallHighlightBMH, SmallHighlightMaskBMH, W12Sixteenth, H11Tenth, 0, 0, W4Sixteenth, H1Tenth, 913, 346
 	invoke DrawImage_WithMask, hdc, BoostsButtonBMH, BoostsButtonMaskBMH, W12Sixteenth, H11Tenth, 0, 0, W4Sixteenth, H1Tenth, 913, 346
-	invoke DrawImage_WithMask, hdc, SmallHighlightBMH, SmallHighlightMaskBMH, 0, WinHeight, 0, 0, W4Sixteenth, H1Tenth, 913, 346
+	;invoke DrawImage_WithMask, hdc, SmallHighlightBMH, SmallHighlightMaskBMH, 0, WinHeight, 0, 0, W4Sixteenth, H1Tenth, 913, 346
 	invoke DrawImage_WithMask, hdc, EnemyButtonBMH, EnemyButtonMaskBMH, 0, WinHeight, 0, 0, W4Sixteenth, H1Tenth, 913, 346
-	invoke DrawImage_WithMask, hdc, VSHighlightBMH, VSHighlightMaskBMH, W7Sixteenth, WinHeight, 0, 0, W2Sixteenth, H2Tenth, 463, 679
+	;invoke DrawImage_WithMask, hdc, VSHighlightBMH, VSHighlightMaskBMH, W7Sixteenth, WinHeight, 0, 0, W2Sixteenth, H2Tenth, 463, 679
 	invoke DrawImage_WithMask, hdc, VSButtonBMH, VSButtonMaskBMH, W7Sixteenth, WinHeight, 0, 0, W2Sixteenth, H2Tenth, 463, 679
 
 	cmp Me.boosts, 0
@@ -1139,13 +1152,13 @@ onlinenocount:
 
 singledraw:
 	invoke DrawImage, hdc, CurrentBMH, 0, 0, 0, 0, WinWidth, WinHeight, 1000, 750
-	invoke DrawImage_WithMask, hdc, SmallHighlightBMH, SmallHighlightMaskBMH, W12Sixteenth, WinHeight, 0, 0, W4Sixteenth, H1Tenth, 913, 346
+	;invoke DrawImage_WithMask, hdc, SmallHighlightBMH, SmallHighlightMaskBMH, W12Sixteenth, WinHeight, 0, 0, W4Sixteenth, H1Tenth, 913, 346
 	invoke DrawImage_WithMask, hdc, UserButtonBMH, UserButtonMaskBMH, W12Sixteenth, WinHeight, 0, 0, W4Sixteenth, H1Tenth, 913, 346
-	invoke DrawImage_WithMask, hdc, SmallHighlightBMH, SmallHighlightMaskBMH, W12Sixteenth, H11Tenth, 0, 0, W4Sixteenth, H1Tenth, 913, 346
+	;invoke DrawImage_WithMask, hdc, SmallHighlightBMH, SmallHighlightMaskBMH, W12Sixteenth, H11Tenth, 0, 0, W4Sixteenth, H1Tenth, 913, 346
 	invoke DrawImage_WithMask, hdc, BoostsButtonBMH, BoostsButtonMaskBMH, W12Sixteenth, H11Tenth, 0, 0, W4Sixteenth, H1Tenth, 913, 346
-	invoke DrawImage_WithMask, hdc, SmallHighlightBMH, SmallHighlightMaskBMH, 0, WinHeight, 0, 0, W4Sixteenth, H1Tenth, 913, 346
+	;invoke DrawImage_WithMask, hdc, SmallHighlightBMH, SmallHighlightMaskBMH, 0, WinHeight, 0, 0, W4Sixteenth, H1Tenth, 913, 346
 	invoke DrawImage_WithMask, hdc, EnemyButtonBMH, EnemyButtonMaskBMH, 0, WinHeight, 0, 0, W4Sixteenth, H1Tenth, 913, 346
-	invoke DrawImage_WithMask, hdc, VSHighlightBMH, VSHighlightMaskBMH, W7Sixteenth, WinHeight, 0, 0, W2Sixteenth, H2Tenth, 463, 679
+	;invoke DrawImage_WithMask, hdc, VSHighlightBMH, VSHighlightMaskBMH, W7Sixteenth, WinHeight, 0, 0, W2Sixteenth, H2Tenth, 463, 679
 	invoke DrawImage_WithMask, hdc, VSButtonBMH, VSButtonMaskBMH, W7Sixteenth, WinHeight, 0, 0, W2Sixteenth, H2Tenth, 463, 679
 
 singledraw1:
@@ -1259,10 +1272,10 @@ mainmenuexitselect:
 
 nextmainmenu:
 	invoke DrawImage_WithMask, hdc, NewGameButtonBMH, NewGameButtonMaskBMH, W4Sixteenth, H1Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
-	invoke DrawImage_WithMask, hdc, SettingsButtonBMH, SettingsButtonMaskBMH,  W4Sixteenth, H2Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
-	invoke DrawImage_WithMask, hdc, HelpButtonBMH, HelpButtonMaskBMH,  W4Sixteenth, H3Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
-	invoke DrawImage_WithMask, hdc, CreditsButtonBMH, CreditsButtonMaskBMH,  W4Sixteenth, H4Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
-	invoke DrawImage_WithMask, hdc, ExitButtonBMH, ExitButtonMaskBMH,  W4Sixteenth, H5Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, SettingsButtonBMH, SettingsButtonMaskBMH, W4Sixteenth, H2Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, HelpButtonBMH, HelpButtonMaskBMH, W4Sixteenth, H3Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, CreditsButtonBMH, CreditsButtonMaskBMH, W4Sixteenth, H4Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, ExitButtonBMH, ExitButtonMaskBMH, W4Sixteenth, H5Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
 	invoke GetTickCount
 	mov NowFrameTime, eax
 	sub eax, LastFrameTime
@@ -1311,8 +1324,8 @@ settingsbackselect:
 
 nextsettings:
 	invoke DrawImage_WithMask, hdc, AudioButtonBMH, AudioButtonMaskBMH, W4Sixteenth, H1Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
-	invoke DrawImage_WithMask, hdc, GraphicsButtonBMH, GraphicsButtonMaskBMH,  W4Sixteenth, H2Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
-	invoke DrawImage_WithMask, hdc, BackButtonBMH, BackButtonMaskBMH,  W4Sixteenth, H3Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, GraphicsButtonBMH, GraphicsButtonMaskBMH, W4Sixteenth, H2Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, BackButtonBMH, BackButtonMaskBMH, W4Sixteenth, H3Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
 	invoke GetTickCount
 	mov NowFrameTime, eax
 	sub eax, LastFrameTime
@@ -1372,10 +1385,10 @@ pausingmainmenuselected:
 
 nextpausing:
 	invoke DrawImage_WithMask, hdc, ResumeButtonBMH, ResumeButtonMaskBMH, W4Sixteenth, H1Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
-	invoke DrawImage_WithMask, hdc, NewGameButtonBMH, NewGameButtonMaskBMH,  W4Sixteenth, H2Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
-	invoke DrawImage_WithMask, hdc, SettingsButtonBMH, SettingsButtonMaskBMH,  W4Sixteenth, H3Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
-	invoke DrawImage_WithMask, hdc, HelpButtonBMH, HelpButtonMaskBMH,  W4Sixteenth, H4Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
-	invoke DrawImage_WithMask, hdc, MainMenuButtonBMH, MainMenuButtonMaskBMH,  W4Sixteenth, H5Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, NewGameButtonBMH, NewGameButtonMaskBMH, W4Sixteenth, H2Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, SettingsButtonBMH, SettingsButtonMaskBMH, W4Sixteenth, H3Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, HelpButtonBMH, HelpButtonMaskBMH, W4Sixteenth, H4Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, MainMenuButtonBMH, MainMenuButtonMaskBMH, W4Sixteenth, H5Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
 	invoke GetTickCount
 	mov NowFrameTime, eax
 	sub eax, LastFrameTime
@@ -1429,10 +1442,10 @@ endingexitselected:
 	jmp nextending
 
 nextending:
-	invoke DrawImage_WithMask, hdc, NewGameButtonBMH, NewGameButtonMaskBMH,  W4Sixteenth, H3Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, NewGameButtonBMH, NewGameButtonMaskBMH, W4Sixteenth, H3Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
 	invoke DrawImage_WithMask, hdc, CreditsButtonBMH, CreditsButtonMaskBMH, W4Sixteenth, H4Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
-	invoke DrawImage_WithMask, hdc, MainMenuButtonBMH, MainMenuButtonMaskBMH,  W4Sixteenth, H5Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
-	invoke DrawImage_WithMask, hdc, ExitButtonBMH, ExitButtonMaskBMH,  W4Sixteenth, H6Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, MainMenuButtonBMH, MainMenuButtonMaskBMH, W4Sixteenth, H5Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, ExitButtonBMH, ExitButtonMaskBMH, W4Sixteenth, H6Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
 	cmp Winner, P1WINS
 	je Win1
 	cmp Winner, P2WINS
@@ -1531,6 +1544,7 @@ audiobackselected:
 nextaudio:
 	invoke DrawImage_WithMask, hdc, VolumeButtonBMH, VolumeButtonMaskBMH, W4Sixteenth, H1Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
 	invoke DrawImage_WithMask, hdc, VolumeBarBMH, VolumeBarMaskBMH, W4Sixteenth, H2Tenth, 0, 0, W8Sixteenth, H1Tenth, 1500, 200
+	invoke DrawImage_WithMask, hdc, SelectorBMH, SelectorMaskBMH, SelectorX, H2Tenth, 0, 0, W1Sixteenth, H1Tenth, 217, 217
 	invoke DrawImage_WithMask, hdc, MusicButtonBMH, MusicButtonMaskBMH, W2Sixteenth, H3Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
 	invoke DrawImage_WithMask, hdc, SFXButtonBMH, SFXButtonMaskBMH, W2Sixteenth, H4Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
 	invoke DrawImage_WithMask, hdc, TrackButtonBMH, TrackButtonMaskBMH, W4Sixteenth, H6Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
@@ -1566,7 +1580,7 @@ audiosfxoff:
 audiomutecheck:
 	mov eax, Music
 	mov ebx, SFX
-	add eax, ebx
+	and eax, ebx
 	cmp eax, 0
 	je audiomuted
 audionotmuted:
@@ -2131,7 +2145,7 @@ connecting:
 		.else 
 		invoke ExitProcess, 1
 		.endif 
-	.elseif   ax==FD_CLOSE
+	.elseif ax==FD_CLOSE
 		shr eax,16 
 		.if ax==NULL 
 		;<no error occurs so proceed> 
@@ -2233,7 +2247,7 @@ onlinegame:
 	invoke WSAGetLastError
 	invoke ExitProcess, 1;<put your error handling routine here> 
 	.else 
-	xor eax, eax  ;........ 
+	xor eax, eax ;........ 
 	.endif
 	mov sin.sin_family, AF_INET 
 	invoke htons, Port	; convert port number into network byte order first 
@@ -2347,17 +2361,16 @@ audio:
 	ret
 
 mute:
-	cmp Volume, 0000h
+	cmp Volume, 00000000h
 	je realunmute
 	jmp realmute
 realunmute:
-	mov eax, 0
 	mov ebx, BackupVolume
 	mov Volume, ebx
-	mov BackupVolume, eax
+	invoke setSelectorX, Volume
 	mov eax, BackupMusic
 	mov ebx, BackupSFX
-	add eax, ebx
+	and eax, ebx
 	cmp eax, 0
 	jg partialunmute
 fullunmute:
@@ -2380,10 +2393,13 @@ unmutenomusic:
 realmute:
 	mov eax, Volume
 	mov ebx, 0
+	push ebx
 	mov BackupVolume, eax
 	mov Volume, ebx
+	invoke setSelectorX, Volume
 	mov eax, Music
 	mov BackupMusic, eax
+	pop ebx
 	mov Music, ebx
 	mov eax, SFX
 	mov BackupSFX, eax
@@ -2422,6 +2438,20 @@ sfx:
 	ret
 
 volume:
+	mov eax, MouseX
+	mov SelectorX, eax
+	sub eax, W4Sixteenth
+	mov ebx, 0ffffh
+	xor edx, edx
+	mul ebx
+	mov ebx, W8Sixteenth
+	xor edx, edx
+	div ebx
+	mov ebx, eax
+	shl eax, 16
+	add eax, ebx
+	mov Volume, eax
+	invoke waveOutSetVolume, NULL, Volume
 	ret
 
 image:
@@ -2430,8 +2460,8 @@ image:
 
 resize:
 	mov eax, WinWidth
-	sub eax, 200		;WINWIDTH/5
-	cmp eax, WINWIDTH-400		;3*WINWIDTH/5
+	sub eax, 200
+	cmp eax, WINWIDTH-400
 	jge notloopsize
 	mov eax, WINWIDTH
 notloopsize:
@@ -2468,7 +2498,7 @@ ending:
 	mov status, eax
 	mov eax, MAINMENU
 	mov laststatus, eax
-	;invoke ResizeWindow, WinWidth, WinHeight
+	;invoke ResizeWindow, RealWidth, WinHeight
 	ret
 
 statusmove:
@@ -3070,11 +3100,54 @@ audiomovement:
 	je audioupselect
 	cmp wParam, VK_DOWN
 	je audiodownselect
+	cmp wParam, VK_LEFT
+	je audiovolumelower
+	cmp wParam, VK_RIGHT
+	je audiovolumeraise
 	cmp wParam, VK_RETURN
 	je audioselect
 	cmp wParam, VK_ESCAPE
 	je closing
 	ret
+audiovolumelower:
+	cmp Selected, 1
+	jne audioret
+	mov eax, Volume
+	shr eax, 16
+	sub eax, 0fffh
+	cmp eax, 0
+	jg yesvolumelower
+	mov eax, 0
+	mov Volume, eax
+	jmp realmute
+yesvolumelower:
+	mov ebx, eax
+	shl eax, 16
+	add eax, ebx
+	mov Volume, eax
+	invoke setSelectorX, Volume
+	invoke waveOutSetVolume, NULL, Volume
+	ret
+audiovolumeraise:
+	cmp Selected, 1
+	jne audioret
+	mov eax, Volume
+	shr eax, 16
+	add eax, 0fffh
+	cmp eax, 0ffffh
+	jl yesvolumeraise
+	mov eax, 0ffffh
+yesvolumeraise:
+	mov ebx, eax
+	shl eax, 16
+	add eax, ebx
+	mov Volume, eax
+	invoke setSelectorX, Volume
+	invoke waveOutSetVolume, NULL, Volume
+	ret
+audioret:
+	ret
+
 audioupselect:
 	dec Selected
 	cmp Selected, 1
@@ -3696,12 +3769,12 @@ pausingpaint:
 	mov hdc, eax
 	invoke CreateCompatibleDC, hdc
 	mov mem_hdc, eax
-	invoke CreateCompatibleBitmap, hdc, WinWidth, HUDHeight
+	invoke CreateCompatibleBitmap, hdc, RealWidth, RealHUDHeight
 	mov mem_hbm, eax
 	invoke SelectObject, mem_hdc, mem_hbm
 	mov OldHandle, eax
 	invoke DrawBG, status, rect, mem_hdc, myhWnd
-	invoke BitBlt, hdc, 0, 0, WinWidth, HUDHeight, mem_hdc, 0, 0, SRCCOPY
+	invoke BitBlt, hdc, 0, 0, RealWidth, RealHUDHeight, mem_hdc, 0, 0, SRCCOPY
 	invoke SelectObject, mem_hdc, OldHandle
 	invoke DeleteObject, mem_hbm
 	invoke DeleteDC, mem_hdc
@@ -3713,12 +3786,12 @@ graphicspaint:
 	mov hdc, eax
 	invoke CreateCompatibleDC, hdc
 	mov mem_hdc, eax
-	invoke CreateCompatibleBitmap, hdc, WinWidth, HUDHeight
+	invoke CreateCompatibleBitmap, hdc, RealWidth, RealHUDHeight
 	mov mem_hbm, eax
 	invoke SelectObject, mem_hdc, mem_hbm
 	mov OldHandle, eax
 	invoke DrawBG, status, rect, mem_hdc, myhWnd
-	invoke BitBlt, hdc, 0, 0, WinWidth, HUDHeight, mem_hdc, 0, 0, SRCCOPY
+	invoke BitBlt, hdc, 0, 0, RealWidth, RealHUDHeight, mem_hdc, 0, 0, SRCCOPY
 	invoke SelectObject, mem_hdc, OldHandle
 	invoke DeleteObject, mem_hbm
 	invoke DeleteDC, mem_hdc
@@ -3730,12 +3803,12 @@ endingpaint:
 	mov hdc, eax
 	invoke CreateCompatibleDC, hdc
 	mov mem_hdc, eax
-	invoke CreateCompatibleBitmap, hdc, WinWidth, HUDHeight
+	invoke CreateCompatibleBitmap, hdc, RealWidth, RealHUDHeight
 	mov mem_hbm, eax
 	invoke SelectObject, mem_hdc, mem_hbm
 	mov OldHandle, eax
 	invoke DrawBG, status, rect, mem_hdc, myhWnd
-	invoke BitBlt, hdc, 0, 0, WinWidth, HUDHeight, mem_hdc, 0, 0, SRCCOPY
+	invoke BitBlt, hdc, 0, 0, RealWidth, RealHUDHeight, mem_hdc, 0, 0, SRCCOPY
 	invoke SelectObject, mem_hdc, OldHandle
 	invoke DeleteObject, mem_hbm
 	invoke DeleteDC, mem_hdc
@@ -3747,12 +3820,12 @@ mainmenupaint:
 	mov hdc, eax
 	invoke CreateCompatibleDC, hdc
 	mov mem_hdc, eax
-	invoke CreateCompatibleBitmap, hdc, WinWidth, HUDHeight
+	invoke CreateCompatibleBitmap, hdc, RealWidth, RealHUDHeight
 	mov mem_hbm, eax
 	invoke SelectObject, mem_hdc, mem_hbm
 	mov OldHandle, eax
 	invoke DrawBG, status, rect, mem_hdc, myhWnd
-	invoke BitBlt, hdc, 0, 0, WinWidth, HUDHeight, mem_hdc, 0, 0, SRCCOPY
+	invoke BitBlt, hdc, 0, 0, RealWidth, RealHUDHeight, mem_hdc, 0, 0, SRCCOPY
 	invoke SelectObject, mem_hdc, OldHandle
 	invoke DeleteObject, mem_hbm
 	invoke DeleteDC, mem_hdc
@@ -3764,12 +3837,12 @@ settingspaint:
 	mov hdc, eax
 	invoke CreateCompatibleDC, hdc
 	mov mem_hdc, eax
-	invoke CreateCompatibleBitmap, hdc, WinWidth, HUDHeight
+	invoke CreateCompatibleBitmap, hdc, RealWidth, RealHUDHeight
 	mov mem_hbm, eax
 	invoke SelectObject, mem_hdc, mem_hbm
 	mov OldHandle, eax
 	invoke DrawBG, status, rect, mem_hdc, myhWnd
-	invoke BitBlt, hdc, 0, 0, WinWidth, HUDHeight, mem_hdc, 0, 0, SRCCOPY
+	invoke BitBlt, hdc, 0, 0, RealWidth, RealHUDHeight, mem_hdc, 0, 0, SRCCOPY
 	invoke SelectObject, mem_hdc, OldHandle
 	invoke DeleteObject, mem_hbm
 	invoke DeleteDC, mem_hdc
@@ -3781,12 +3854,12 @@ audiopaint:
 	mov hdc, eax
 	invoke CreateCompatibleDC, hdc
 	mov mem_hdc, eax
-	invoke CreateCompatibleBitmap, hdc, WinWidth, HUDHeight
+	invoke CreateCompatibleBitmap, hdc, RealWidth, RealHUDHeight
 	mov mem_hbm, eax
 	invoke SelectObject, mem_hdc, mem_hbm
 	mov OldHandle, eax
 	invoke DrawBG, status, rect, mem_hdc, myhWnd
-	invoke BitBlt, hdc, 0, 0, WinWidth, HUDHeight, mem_hdc, 0, 0, SRCCOPY
+	invoke BitBlt, hdc, 0, 0, RealWidth, RealHUDHeight, mem_hdc, 0, 0, SRCCOPY
 	invoke SelectObject, mem_hdc, OldHandle
 	invoke DeleteObject, mem_hbm
 	invoke DeleteDC, mem_hdc
@@ -3798,12 +3871,12 @@ gamepaint:
 	mov hdc, eax
 	invoke CreateCompatibleDC, hdc
 	mov mem_hdc, eax
-	invoke CreateCompatibleBitmap, hdc, WinWidth, HUDHeight
+	invoke CreateCompatibleBitmap, hdc, RealWidth, RealHUDHeight
 	mov mem_hbm, eax
 	invoke SelectObject, mem_hdc, mem_hbm
 	mov OldHandle, eax
 	invoke DrawBG, status, rect, mem_hdc, myhWnd
-	invoke BitBlt, hdc, 0, 0, WinWidth, HUDHeight, mem_hdc, 0, 0, SRCCOPY
+	invoke BitBlt, hdc, 0, 0, RealWidth, RealHUDHeight, mem_hdc, 0, 0, SRCCOPY
 	invoke SelectObject, mem_hdc, OldHandle
 	invoke DeleteObject, mem_hbm
 	invoke DeleteDC, mem_hdc
@@ -3818,7 +3891,7 @@ localgamepaint:
 	mov hdc, eax
 	invoke CreateCompatibleDC, hdc
 	mov mem_hdc, eax
-	invoke CreateCompatibleBitmap, hdc, WinWidth, HUDHeight
+	invoke CreateCompatibleBitmap, hdc, RealWidth, RealHUDHeight
 	mov mem_hbm, eax
 	invoke SelectObject, mem_hdc, mem_hbm
 	mov OldHandle, eax
@@ -3826,7 +3899,7 @@ localgamepaint:
 	invoke SetGrid, P1.x, P1.y, P1.id
 	invoke SetGrid, P2.x, P2.y, P2.id
 	invoke DrawGrid, mem_hdc
-	invoke BitBlt, hdc, 0, 0, WinWidth, HUDHeight, mem_hdc, 0, 0, SRCCOPY
+	invoke BitBlt, hdc, 0, 0, RealWidth, RealHUDHeight, mem_hdc, 0, 0, SRCCOPY
 	invoke SelectObject, mem_hdc, OldHandle
 	invoke DeleteObject, mem_hbm
 	invoke DeleteDC, mem_hdc
@@ -4095,13 +4168,13 @@ localnotdead2:
 	mov hdc, eax
 	invoke CreateCompatibleDC, hdc
 	mov mem_hdc, eax
-	invoke CreateCompatibleBitmap, hdc, WinWidth, HUDHeight
+	invoke CreateCompatibleBitmap, hdc, RealWidth, RealHUDHeight
 	mov mem_hbm, eax
 	invoke SelectObject, mem_hdc, mem_hbm
 	mov OldHandle, eax
 	invoke DrawBG, status, rect, mem_hdc, myhWnd
 	invoke DrawGrid, mem_hdc
-	invoke BitBlt, hdc, 0, 0, WinWidth, HUDHeight, mem_hdc, 0, 0, SRCCOPY
+	invoke BitBlt, hdc, 0, 0, RealWidth, RealHUDHeight, mem_hdc, 0, 0, SRCCOPY
 	invoke SelectObject, mem_hdc, OldHandle
 	invoke DeleteObject, mem_hbm
 	invoke DeleteDC, mem_hdc
@@ -4135,12 +4208,12 @@ onlinegamepaint:
 	mov hdc, eax
 	invoke CreateCompatibleDC, hdc
 	mov mem_hdc, eax
-	invoke CreateCompatibleBitmap, hdc, WinWidth, HUDHeight
+	invoke CreateCompatibleBitmap, hdc, RealWidth, RealHUDHeight
 	mov mem_hbm, eax
 	invoke SelectObject, mem_hdc, mem_hbm
 	mov OldHandle, eax
 	invoke DrawBG, status, rect, mem_hdc, myhWnd
-	invoke BitBlt, hdc, 0, 0, WinWidth, HUDHeight, mem_hdc, 0, 0, SRCCOPY
+	invoke BitBlt, hdc, 0, 0, RealWidth, RealHUDHeight, mem_hdc, 0, 0, SRCCOPY
 	invoke SelectObject, mem_hdc, OldHandle
 	invoke DeleteObject, mem_hbm
 	invoke DeleteDC, mem_hdc
@@ -4153,14 +4226,14 @@ onlinegamepaint:
 	mov hdc, eax
 	invoke CreateCompatibleDC, hdc
 	mov mem_hdc, eax
-	invoke CreateCompatibleBitmap, hdc, WinWidth, HUDHeight
+	invoke CreateCompatibleBitmap, hdc, RealWidth, RealHUDHeight
 	mov mem_hbm, eax
 	invoke SelectObject, mem_hdc, mem_hbm
 	mov OldHandle, eax
 	invoke DrawBG, status, rect, mem_hdc, myhWnd
 	invoke SetGrid, Me.x, Me.y, Me.id
 	invoke DrawGrid, mem_hdc
-	invoke BitBlt, hdc, 0, 0, WinWidth, HUDHeight, mem_hdc, 0, 0, SRCCOPY
+	invoke BitBlt, hdc, 0, 0, RealWidth, RealHUDHeight, mem_hdc, 0, 0, SRCCOPY
 	invoke SelectObject, mem_hdc, OldHandle
 	invoke DeleteObject, mem_hbm
 	invoke DeleteDC, mem_hdc
@@ -4333,13 +4406,13 @@ nottileloop:
 	mov hdc, eax
 	invoke CreateCompatibleDC, hdc
 	mov mem_hdc, eax
-	invoke CreateCompatibleBitmap, hdc, WinWidth, HUDHeight
+	invoke CreateCompatibleBitmap, hdc, RealWidth, RealHUDHeight
 	mov mem_hbm, eax
 	invoke SelectObject, mem_hdc, mem_hbm
 	mov OldHandle, eax
 	invoke DrawBG, status, rect, mem_hdc, myhWnd
 	invoke DrawGrid, mem_hdc
-	invoke BitBlt, hdc, 0, 0, WinWidth, HUDHeight, mem_hdc, 0, 0, SRCCOPY
+	invoke BitBlt, hdc, 0, 0, RealWidth, RealHUDHeight, mem_hdc, 0, 0, SRCCOPY
 	invoke SelectObject, mem_hdc, OldHandle
 	invoke DeleteObject, mem_hbm
 	invoke DeleteDC, mem_hdc
@@ -4375,7 +4448,7 @@ singlegamepaint:
 	mov hdc, eax
 	invoke CreateCompatibleDC, hdc
 	mov mem_hdc, eax
-	invoke CreateCompatibleBitmap, hdc, WinWidth, HUDHeight
+	invoke CreateCompatibleBitmap, hdc, RealWidth, RealHUDHeight
 	mov mem_hbm, eax
 	invoke SelectObject, mem_hdc, mem_hbm
 	mov OldHandle, eax
@@ -4383,7 +4456,7 @@ singlegamepaint:
 	invoke SetGrid, P1.x, P1.y, P1.id
 	invoke SetGrid, P2.x, P2.y, P2.id
 	invoke DrawGrid, mem_hdc
-	invoke BitBlt, hdc, 0, 0, WinWidth, HUDHeight, mem_hdc, 0, 0, SRCCOPY
+	invoke BitBlt, hdc, 0, 0, RealWidth, RealHUDHeight, mem_hdc, 0, 0, SRCCOPY
 	invoke SelectObject, mem_hdc, OldHandle
 	invoke DeleteObject, mem_hbm
 	invoke DeleteDC, mem_hdc
@@ -4776,13 +4849,13 @@ singlenotdead2:
 	mov hdc, eax
 	invoke CreateCompatibleDC, hdc
 	mov mem_hdc, eax
-	invoke CreateCompatibleBitmap, hdc, WinWidth, HUDHeight
+	invoke CreateCompatibleBitmap, hdc, RealWidth, RealHUDHeight
 	mov mem_hbm, eax
 	invoke SelectObject, mem_hdc, mem_hbm
 	mov OldHandle, eax
 	invoke DrawBG, status, rect, mem_hdc, myhWnd
 	invoke DrawGrid, mem_hdc
-	invoke BitBlt, hdc, 0, 0, WinWidth, HUDHeight, mem_hdc, 0, 0, SRCCOPY
+	invoke BitBlt, hdc, 0, 0, RealWidth, RealHUDHeight, mem_hdc, 0, 0, SRCCOPY
 	invoke SelectObject, mem_hdc, OldHandle
 	invoke DeleteObject, mem_hbm
 	invoke DeleteDC, mem_hdc
