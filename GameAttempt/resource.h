@@ -38,6 +38,7 @@
 #define IDB_GAME4 38
 #define IDB_GAME5 39
 #define IDB_GAME6 40
+#define IDB_WHEEL 47
 #define IDB_COUNTGO 50
 #define IDB_COUNT1 51
 #define IDB_COUNT2 52
@@ -64,3 +65,4 @@
 #define IDB_VSBUTTON 73
 #define IDB_VSHIGHLIGHT 74
 #define IDB_BIT 75
+#define IDB_CONFIRMBUTTON 76

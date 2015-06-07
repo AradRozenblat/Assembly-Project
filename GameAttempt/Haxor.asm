@@ -81,6 +81,9 @@ GAME4 equ 38
 GAME5 equ 39
 GAME6 equ 40
 
+WHEEL equ 47
+CHOOSE1 equ 48
+CHOOSE2 equ 49
 COUNTGO equ 50
 COUNT1 equ 51
 COUNT2 equ 52
@@ -108,6 +111,7 @@ BOOSTSBUTTON equ 72
 VSBUTTON equ 73
 VSHIGHLIGHT equ 74
 BIT equ 75
+CONFIRMBUTTON equ 76
 
 REG1 equ 1
 DARK1 equ 3
@@ -146,8 +150,11 @@ RealWidth DWORD ?
 RealHeight DWORD ?
 RealHUDHeight DWORD ?
 
+MyBrush HBRUSH ?
+
 Color1 DWORD 000000ff0000h
 Color2 DWORD 0000000000ffh
+TempColor DWORD ?
 Darker1 DWORD ?
 Darker2 DWORD ?
 Lighter1 DWORD ?
@@ -174,6 +181,7 @@ MainMenuBMH HBITMAP ?
 PausingBMH HBITMAP ?
 EndingBMH HBITMAP ?
 ColorBMH HBITMAP ?
+WheelBMH HBITMAP ?
 ExitingBMH HBITMAP ?
 HelpingBMH HBITMAP ?
 CreditsBMH HBITMAP ?
@@ -189,6 +197,8 @@ MainMenuButtonBMH HBITMAP ?
 MainMenuButtonMaskBMH HBITMAP ?
 BackButtonBMH HBITMAP ?
 BackButtonMaskBMH HBITMAP ?
+ConfirmButtonBMH HBITMAP ?
+ConfirmButtonMaskBMH HBITMAP ?
 SettingsButtonBMH HBITMAP ?
 SettingsButtonMaskBMH HBITMAP ?
 AudioButtonBMH HBITMAP ?
@@ -367,6 +377,7 @@ CountTime DWORD ?
 
 Winner DWORD ?
 hWnd HWND ?
+colorDC HDC ?
 
 playTheSonOfFlynn BYTE "play TheSonOfFlynn.mp3 repeat",0
 pauseTheSonOfFlynn BYTE "pause TheSonOfFlynn.mp3",0
@@ -430,6 +441,24 @@ DistanceMap db sizeof grid dup(-1)
 
 .code
 
+BUILDRECT PROC, x:DWORD, y:DWORD, h:DWORD, w:DWORD, hdc:HDC, brush:HBRUSH
+;----------------------------------------------------------------------------
+LOCAL rectangle:RECT
+mov eax, x
+mov rectangle.left, eax
+add eax, w
+mov rectangle.right, eax
+
+mov eax, y
+mov rectangle.top, eax
+add eax, h
+mov rectangle.bottom, eax
+
+invoke FillRect, hdc, addr rectangle, brush
+ret
+;============================================================================
+BUILDRECT ENDP
+
 setSelectorX PROC, Vol:DWORD
 ;----------------------------------------------------------------------------
 	mov eax, Vol
@@ -441,7 +470,11 @@ setSelectorX PROC, Vol:DWORD
 	xor edx, edx
 	div ebx
 	add eax, W4Sixteenth
-	mov SelectorX, eax
+	mov ebx, eax
+	mov eax, W1Sixteenth
+	shr eax, 1
+	sub ebx, eax
+	mov SelectorX, ebx
 	ret
 ;============================================================================
 setSelectorX ENDP
@@ -877,7 +910,61 @@ DrawBG PROC, mystatus:DWORD, myrect:RECT, hdc:HDC, myhWnd:HWND
 	je audiodraw
 	cmp mystatus, GRAPHICS
 	je graphicsdraw
+	cmp mystatus, CHOOSE1
+	je choose1draw
+	cmp mystatus, CHOOSE2
+	je choose2draw
 	invoke ExitProcess, 0
+
+choose1draw:
+	invoke DrawImage, hdc, WheelBMH, 0, 0, 0, 0, WinWidth, WinHeight, 800, 600
+	cmp Selected, 1
+	je choose1confirmselect
+	cmp Selected, 2
+	je choose1backselect
+	ret
+choose1confirmselect:
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W4Sixteenth, H6Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
+	jmp nextchoose1
+choose1backselect:
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W4Sixteenth, H8Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
+	jmp nextchoose1
+
+nextchoose1:
+	invoke DrawImage_WithMask, hdc, ConfirmButtonBMH, ConfirmButtonMaskBMH, W4Sixteenth, H6Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
+	invoke GetStockObject, DC_BRUSH
+	mov MyBrush, eax
+	invoke SelectObject, hdc, MyBrush
+	invoke SetDCBrushColor, hdc, TempColor
+	mov MyBrush, eax
+	invoke BUILDRECT, W4Sixteenth, H7Tenth, H1Tenth, W8Sixteenth, hdc, MyBrush
+	invoke DrawImage_WithMask, hdc, BackButtonBMH, BackButtonMaskBMH, W4Sixteenth, H8Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
+	ret
+
+choose2draw:
+	invoke DrawImage, hdc, WheelBMH, 0, 0, 0, 0, WinWidth, WinHeight, 800, 600
+	cmp Selected, 1
+	je choose2confirmselect
+	cmp Selected, 2
+	je choose2backselect
+	ret
+choose2confirmselect:
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W4Sixteenth, H6Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
+	jmp nextchoose2
+choose2backselect:
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W4Sixteenth, H8Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
+	jmp nextchoose2
+
+nextchoose2:
+	invoke DrawImage_WithMask, hdc, ConfirmButtonBMH, ConfirmButtonMaskBMH, W4Sixteenth, H6Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
+	invoke GetStockObject, DC_BRUSH
+	mov MyBrush, eax
+	invoke SelectObject, hdc, MyBrush
+	invoke SetDCBrushColor, hdc, TempColor
+	mov MyBrush, eax
+	invoke BUILDRECT, W4Sixteenth, H7Tenth, H1Tenth, W8Sixteenth, hdc, MyBrush
+	invoke DrawImage_WithMask, hdc, BackButtonBMH, BackButtonMaskBMH, W4Sixteenth, H8Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
+	ret
 
 gamedraw:
 	mov eax, Frame
@@ -1045,6 +1132,8 @@ onlinedraw:
 	dec eax
 	imul eax, 1000
 	invoke DrawImage, hdc, OnlineGameBMH, W12Sixteenth, H8Tenth, eax, 0, W4Sixteenth, H2Tenth, 1000, 750
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W4Sixteenth, H7Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, BackButtonBMH, BackButtonMaskBMH, W4Sixteenth, H7Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
 	invoke GetTickCount
 	mov NowFrameTime, eax
 	sub eax, LastFrameTime
@@ -1492,7 +1581,53 @@ endinggifloop:
 	mov Frame, eax
 	ret
 
-colordraw:
+colordraw:	;p1, p2, back
+	mov eax, Frame
+	dec eax
+	imul eax, 600
+	invoke DrawImage, hdc, ColorBMH, W2Sixteenth, 0, eax, 0, W12Sixteenth, WinHeight, 600, 600
+	cmp Selected, 1
+	je colorP1selected
+	cmp Selected, 2
+	je colorP2selected
+	cmp Selected, 3
+	je colorbackselected
+	ret
+
+colorP1selected:
+	invoke DrawImage_WithMask, hdc, SmallHighlightBMH, SmallHighlightMaskBMH, W6Sixteenth, H3Tenth, 0, 0, W4Sixteenth, H1Tenth, 913, 346
+	jmp nextcolor
+
+colorP2selected:
+	invoke DrawImage_WithMask, hdc, SmallHighlightBMH, SmallHighlightMaskBMH, W6Sixteenth, H4Tenth, 0, 0, W4Sixteenth, H1Tenth, 913, 346
+	jmp nextcolor
+
+colorbackselected:
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W4Sixteenth, H5Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
+	jmp nextcolor
+
+nextcolor:
+	invoke DrawImage_WithMask, hdc, P1ButtonBMH, P1ButtonMaskBMH, W6Sixteenth, H3Tenth, 0, 0, W4Sixteenth, H1Tenth, 913, 346
+	invoke DrawImage_WithMask, hdc, P2ButtonBMH, P2ButtonMaskBMH, W6Sixteenth, H4Tenth, 0, 0, W4Sixteenth, H1Tenth, 913, 346
+	invoke DrawImage_WithMask, hdc, BackButtonBMH, BackButtonMaskBMH, W4Sixteenth, H5Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
+	invoke GetTickCount
+	mov NowFrameTime, eax
+	sub eax, LastFrameTime
+	cmp eax, 20
+	jge colorgifdraw
+	ret
+colorgifdraw:
+	mov eax, NowFrameTime
+	mov LastFrameTime, eax
+	mov eax, Frame
+	inc eax
+	mov Frame, eax
+	cmp Frame, 37
+	jg colorgifloop
+	ret
+colorgifloop:
+	mov eax, 1
+	mov Frame, eax
 	ret
 
 exitingdraw:
@@ -1587,6 +1722,9 @@ audionotmuted:
 	invoke DrawImage_WithMask, hdc, MuteButtonBMH, MuteButtonMaskBMH, W4Sixteenth, H5Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
 	jmp audiogifcheck
 audiomuted:
+	mov eax, Volume
+	cmp eax, 0
+	jne audionotmuted
 	invoke DrawImage_WithMask, hdc, UnmuteButtonBMH, UnmuteButtonMaskBMH, W4Sixteenth, H5Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
 audiogifcheck:
 	invoke GetTickCount
@@ -1609,13 +1747,13 @@ audiogifloop:
 	mov Frame, eax
 	ret
 
-graphicsdraw:	;colors, image, resize, back
+graphicsdraw:	;color, image, resize, back
 	mov eax, Frame
 	dec eax
 	imul eax, 1000
 	invoke DrawImage, hdc, GraphicsBMH, 0, 0, eax, 0, WinWidth, WinHeight, 1000, 750
 	cmp Selected, 1
-	je graphicscolorsselected
+	je graphicscolorselected
 	cmp Selected, 2
 	je graphicsimageselected
 	cmp Selected, 3
@@ -1624,7 +1762,7 @@ graphicsdraw:	;colors, image, resize, back
 	je graphicsbackselected
 	jmp nextgraphics
 
-graphicscolorsselected:
+graphicscolorselected:
 	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W4Sixteenth, H1Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
 	jmp nextgraphics
 graphicsimageselected:
@@ -1663,24 +1801,6 @@ graphicsgifloop:
 	ret
 ;============================================================================
 DrawBG ENDP
-
-BUILDRECT PROC, x:DWORD, y:DWORD, h:DWORD, w:DWORD, hdc:HDC, brush:HBRUSH
-;----------------------------------------------------------------------------
-LOCAL rectangle:RECT
-mov eax, x
-mov rectangle.left, eax
-add eax, w
-mov rectangle.right, eax
-
-mov eax, y
-mov rectangle.top, eax
-add eax, h
-mov rectangle.bottom, eax
-
-invoke FillRect, hdc, addr rectangle, brush
-ret
-;============================================================================
-BUILDRECT ENDP
 
 WhichPlayer PROC, parameter:WPARAM
 ;----------------------------------------------------------------------------
@@ -2003,8 +2123,6 @@ MainProcedure PROC, myhWnd:HWND, message:UINT, wParam:WPARAM, lParam:LPARAM
 ;----------------------------------------------------------------------------
 local paint:PAINTSTRUCT
 local hdc:HDC
-local brushcolouring1:HBRUSH
-local brushcolouring2:HBRUSH
 local mem_hdc:HDC
 local mem_hbm:HBITMAP
 local OldHandle:HBITMAP
@@ -2016,7 +2134,7 @@ local rect:RECT
 	cmp message, WM_KEYDOWN
 	je statuskey
 	cmp message, WM_MOUSEMOVE
-	je statusmove
+	je statushover
 	cmp message, WM_LBUTTONDOWN
 	je statusclick
 	cmp message, WM_PAINT
@@ -2416,7 +2534,67 @@ track:
 tracknomusic:
 	ret
 
-colors:
+color:
+	mov eax, 1
+	mov Selected, eax
+	;mov eax, status
+	;mov laststatus, eax
+	mov eax, COLOR
+	mov status, eax
+	ret
+
+choose1:
+	mov eax, 1
+	mov Selected, eax
+	;mov eax, status
+	;mov laststatus, eax
+	mov eax, CHOOSE1
+	mov status, eax
+	mov eax, Color1
+	mov TempColor, eax
+	ret
+
+choose2:
+	mov eax, 1
+	mov Selected, eax
+	;mov eax, status
+	;mov laststatus, eax
+	mov eax, CHOOSE2
+	mov status, eax
+	mov eax, Color2
+	mov TempColor, eax
+	ret
+
+confirm1:
+	mov eax, TempColor
+	mov Color1, eax
+	mov P1.color, eax
+	and eax, 07E7E7Eh
+	shr eax, 1
+	mov ebx, Color1
+	and ebx, 0808080h
+	or eax, ebx
+	mov Darker1, eax
+	jmp color
+
+confirm2:
+	mov eax, TempColor
+	mov Color2, eax
+	mov P2.color, eax
+	and eax, 07E7E7Eh
+	shr eax, 1
+	mov ebx, Color2
+	and ebx, 0808080h
+	or eax, ebx
+	mov Darker2, eax
+	jmp color
+
+setcolor:
+	invoke GetDC, hWnd
+	mov colorDC, eax
+	invoke GetPixel, colorDC, MouseX, MouseY
+	mov TempColor, eax
+	invoke ReleaseDC, hWnd, colorDC
 	ret
 
 music:
@@ -2438,8 +2616,13 @@ sfx:
 	ret
 
 volume:
-	mov eax, MouseX
-	mov SelectorX, eax
+	mov ebx, MouseX
+	push ebx
+	mov eax, W1Sixteenth
+	shr eax, 1
+	sub ebx, eax
+	mov SelectorX, ebx
+	pop eax
 	sub eax, W4Sixteenth
 	mov ebx, 0ffffh
 	xor edx, edx
@@ -2501,7 +2684,7 @@ ending:
 	;invoke ResizeWindow, RealWidth, WinHeight
 	ret
 
-statusmove:
+statushover:
 	mov eax, lParam
 	shl eax, 16
 	shr eax, 16
@@ -2523,7 +2706,72 @@ statusmove:
 	je audiohover
 	cmp status, GRAPHICS
 	je graphicshover
+	cmp status, COLOR
+	je colorhover
+	cmp status, CHOOSE1
+	je choose1hover
+	cmp status, CHOOSE2
+	je choose2hover
 	ret
+
+choose1hover:	;confirm, back
+	invoke CheckMouse, MouseX, MouseY, W4Sixteenth, H6Tenth, W8Sixteenth, H2Tenth
+	cmp eax, 1
+	je choose1confirmhover
+	invoke CheckMouse, MouseX, MouseY, W4Sixteenth, H8Tenth, W8Sixteenth, H1Tenth
+	cmp eax, 1
+	je choose1backhover
+	ret
+choose1confirmhover:
+	mov eax, 1
+	mov Selected, eax
+	ret
+choose1backhover:
+	mov eax, 2
+	mov Selected, eax
+	ret
+
+choose2hover:	;confirm, back
+	invoke CheckMouse, MouseX, MouseY, W4Sixteenth, H6Tenth, W8Sixteenth, H2Tenth
+	cmp eax, 1
+	je choose2confirmhover
+	invoke CheckMouse, MouseX, MouseY, W4Sixteenth, H8Tenth, W8Sixteenth, H1Tenth
+	cmp eax, 1
+	je choose2backhover
+	ret
+choose2confirmhover:
+	mov eax, 1
+	mov Selected, eax
+	ret
+choose2backhover:
+	mov eax, 2
+	mov Selected, eax
+	ret
+
+colorhover:	;P1, P2, back
+	invoke CheckMouse, MouseX, MouseY, W6Sixteenth, H3Tenth, W4Sixteenth, H1Tenth
+	cmp eax, 1
+	je colorP1hover
+	invoke CheckMouse, MouseX, MouseY, W6Sixteenth, H4Tenth, W4Sixteenth, H1Tenth
+	cmp eax, 1
+	je colorP2hover
+	invoke CheckMouse, MouseX, MouseY, W4Sixteenth, H5Tenth, W8Sixteenth, H1Tenth
+	cmp eax, 1
+	je colorbackhover
+	ret
+colorP1hover:
+	mov eax, 1
+	mov Selected, eax
+	ret
+colorP2hover:
+	mov eax, 2
+	mov Selected, eax
+	ret
+colorbackhover:
+	mov eax, 3
+	mov Selected, eax
+	ret
+
 gamehover:	;local, online, single, back
 	invoke CheckMouse, MouseX, MouseY, W4Sixteenth, H1Tenth, W8Sixteenth, H1Tenth
 	cmp eax, 1
@@ -2553,8 +2801,6 @@ gamesinglehover:
 gamebackhover:
 	mov eax, 4
 	mov Selected, eax
-	ret
-gamenohover:
 	ret
 
 mainmenuhover:	;new game, settings, help, credits, exit
@@ -2594,8 +2840,6 @@ mainmenuexithover:
 	mov eax, 5
 	mov Selected, eax
 	ret
-mainmenunohover:
-	ret
 
 settingshover:	;audio, graphics, back
 	invoke CheckMouse, MouseX, MouseY, W4Sixteenth, H1Tenth, W8Sixteenth, H1Tenth
@@ -2619,8 +2863,6 @@ settingsgraphicshover:
 settingsbackhover:
 	mov eax, 3
 	mov Selected, eax
-	ret
-settingsnohover:
 	ret
 
 pausinghover:	;resume, new game, settings, help, mainmenu
@@ -2660,8 +2902,6 @@ pausingmainmenuhover:
 	mov eax, 5
 	mov Selected, eax
 	ret
-pausingnohover:
-	ret
 
 endinghover:	;new game, credits, mainmenu, exit
 	invoke CheckMouse, MouseX, MouseY, W4Sixteenth, H3Tenth, W8Sixteenth, H1Tenth
@@ -2692,8 +2932,6 @@ endingmainmenuhover:
 endingexithover:
 	mov eax, 4
 	mov Selected, eax
-	ret
-endingnohover:
 	ret
 
 audiohover:	;volume, music, sfx, mute, track, back
@@ -2749,13 +2987,11 @@ audiobackhover:
 	mov eax, 6
 	mov Selected, eax
 	ret
-audionohover:
-	ret
 
-graphicshover:	;colors, image, resize, back
+graphicshover:	;color, image, resize, back
 	invoke CheckMouse, MouseX, MouseY, W4Sixteenth, H1Tenth, W8Sixteenth, H1Tenth
 	cmp eax, 1
-	je graphicscolorshover
+	je graphicscolorhover
 	invoke CheckMouse, MouseX, MouseY, W4Sixteenth, H2Tenth, W8Sixteenth, H1Tenth
 	cmp eax, 1
 	je graphicsimagehover
@@ -2775,7 +3011,7 @@ graphicshover:	;colors, image, resize, back
 	cmp eax, 1
 	je graphicsbackhover
 	ret
-graphicscolorshover:
+graphicscolorhover:
 	mov eax, 1
 	mov Selected, eax
 	ret
@@ -2790,8 +3026,6 @@ graphicsresizehover:
 graphicsbackhover:
 	mov eax, 4
 	mov Selected, eax
-	ret
-graphicsnohover:
 	ret
 
 statusclick:
@@ -2816,7 +3050,51 @@ statusclick:
 	je audioclick
 	cmp status, GRAPHICS
 	je graphicsclick
+	cmp status, COLOR
+	je colorclick
+	cmp status, CHOOSE1
+	je choose1click
+	cmp status, CHOOSE2
+	je choose2click
 	ret
+
+choose1click:	;confirm, back
+	invoke CheckMouse, MouseX, MouseY, W4Sixteenth, H6Tenth, W8Sixteenth, H2Tenth
+	cmp eax, 1
+	je confirm1
+	invoke CheckMouse, MouseX, MouseY, W4Sixteenth, H8Tenth, W8Sixteenth, H1Tenth
+	cmp eax, 1
+	je color
+	invoke CheckMouse, MouseX, MouseY, W4Sixteenth, 0, W8Sixteenth, H6Tenth
+	cmp eax, 1
+	je setcolor
+	ret
+
+choose2click:	;confirm, back
+	invoke CheckMouse, MouseX, MouseY, W4Sixteenth, H6Tenth, W8Sixteenth, H2Tenth
+	cmp eax, 1
+	je confirm2
+	invoke CheckMouse, MouseX, MouseY, W4Sixteenth, H8Tenth, W8Sixteenth, H1Tenth
+	cmp eax, 1
+	je color
+	invoke CheckMouse, MouseX, MouseY, W4Sixteenth, 0, W8Sixteenth, H6Tenth
+	cmp eax, 1
+	je setcolor
+	ret
+
+
+colorclick:	;P1, P2, back
+	invoke CheckMouse, MouseX, MouseY, W6Sixteenth, H3Tenth, W4Sixteenth, H1Tenth
+	cmp eax, 1
+	je choose1
+	invoke CheckMouse, MouseX, MouseY, W6Sixteenth, H4Tenth, W4Sixteenth, H1Tenth
+	cmp eax, 1
+	je choose2
+	invoke CheckMouse, MouseX, MouseY, W4Sixteenth, H5Tenth, W8Sixteenth, H1Tenth
+	cmp eax, 1
+	je graphics
+	ret
+
 gameclick:	;local, online, back
 	invoke CheckMouse, MouseX, MouseY, W4Sixteenth, H1Tenth, W8Sixteenth, H1Tenth
 	cmp eax, 1
@@ -2925,10 +3203,10 @@ audioclick:	;volume, music, sfx, mute, track, back
 	je settings
 	ret
 
-graphicsclick:	;colors, image, resize, back
+graphicsclick:	;color, image, resize, back
 	invoke CheckMouse, MouseX, MouseY, W4Sixteenth, H1Tenth, W8Sixteenth, H1Tenth
 	cmp eax, 1
-	je colors
+	je color
 	invoke CheckMouse, MouseX, MouseY, W4Sixteenth, H2Tenth, W8Sixteenth, H1Tenth
 	cmp eax, 1
 	je image
@@ -2970,6 +3248,119 @@ statuskey:
 	je audiomovement
 	cmp status, GRAPHICS
 	je graphicsmovement
+	cmp status, COLOR
+	je colormovement
+	cmp status, CHOOSE1
+	je choose1movement
+	cmp status, CHOOSE2
+	je choose2movement
+	ret
+
+choose1movement:
+	cmp wParam, VK_UP
+	je choose1upselect
+	cmp wParam, VK_DOWN
+	je choose1downselect
+	cmp wParam, VK_RETURN
+	je choose1select
+	cmp wParam, VK_ESCAPE
+	je closing
+	ret
+choose1upselect:
+	dec Selected
+	cmp Selected, 1
+	jl choose1selectbot
+	ret
+choose1downselect:
+	inc Selected
+	cmp Selected, 2	;number of buttons: confirm, back
+	jg choose1selecttop
+	ret
+choose1select:
+	cmp Selected, 1
+	je confirm1
+	cmp Selected, 2
+	je color
+	ret
+choose1selecttop:
+	mov eax, 1
+	mov Selected, eax
+	ret
+choose1selectbot:
+	mov eax, 2
+	mov Selected, eax
+	ret
+
+choose2movement:
+	cmp wParam, VK_UP
+	je choose2upselect
+	cmp wParam, VK_DOWN
+	je choose2downselect
+	cmp wParam, VK_RETURN
+	je choose2select
+	cmp wParam, VK_ESCAPE
+	je closing
+	ret
+choose2upselect:
+	dec Selected
+	cmp Selected, 1
+	jl choose2selectbot
+	ret
+choose2downselect:
+	inc Selected
+	cmp Selected, 2	;number of buttons: confirm, back
+	jg choose2selecttop
+	ret
+choose2select:
+	cmp Selected, 1
+	je confirm2
+	cmp Selected, 2
+	je color
+	ret
+choose2selecttop:
+	mov eax, 1
+	mov Selected, eax
+	ret
+choose2selectbot:
+	mov eax, 2
+	mov Selected, eax
+	ret
+
+colormovement:
+	cmp wParam, VK_UP
+	je colorupselect
+	cmp wParam, VK_DOWN
+	je colordownselect
+	cmp wParam, VK_RETURN
+	je colorselect
+	cmp wParam, VK_ESCAPE
+	je closing
+	ret
+colorupselect:
+	dec Selected
+	cmp Selected, 1
+	jl colorselectbot
+	ret
+colordownselect:
+	inc Selected
+	cmp Selected, 3	;number of buttons: P1, P2, back
+	jg colorselecttop
+	ret
+colorselect:
+	cmp Selected, 1
+	je choose1
+	cmp Selected, 2
+	je choose2
+	cmp Selected, 3
+	je graphics
+	ret
+colorselecttop:
+	mov eax, 1
+	mov Selected, eax
+	ret
+colorselectbot:
+	mov eax, 3
+	mov Selected, eax
 	ret
 
 pausingmovement:
@@ -3198,12 +3589,12 @@ graphicsupselect:
 	ret
 graphicsdownselect:
 	inc Selected
-	cmp Selected, 4	;number of buttons: colors, image, resize, back
+	cmp Selected, 4	;number of buttons: color, image, resize, back
 	jg graphicsselecttop
 	ret
 graphicsselect:
 	cmp Selected, 1
-	je colors
+	je color
 	cmp Selected, 2
 	je image
 	cmp Selected, 3
@@ -3299,6 +3690,8 @@ gameselectbot:
 onlinegamemovement:
 	cmp wParam, VK_ESCAPE
 	je closing
+	cmp wParam, VK_RETURN
+	je onlineselect
 	cmp CountDown, 0	;-1
 	jne onlinetheend
 	invoke WhichPlayer, wParam
@@ -3306,6 +3699,11 @@ onlinegamemovement:
 	je onlinemovement
 	jmp onlinetheend
 
+onlineselect:
+	.if connected_to_peer==TRUE
+		ret
+	.endif
+	jmp newgame
 onlineboost:
 	mov eax, Speed
 	cmp Me.speed, eax
@@ -3743,7 +4141,7 @@ singletheend:
 
 statuspainting:
 	cmp status, GAME
-	je gamepaint
+	je generalpaint
 	cmp status, LOCALGAME
 	je localgamepaint
 	cmp status, ONLINEGAME
@@ -3751,122 +4149,26 @@ statuspainting:
 	cmp status, SINGLEGAME
 	je singlegamepaint
 	cmp status, MAINMENU
-	je mainmenupaint
+	je generalpaint
 	cmp status, SETTINGS
-	je settingspaint
+	je generalpaint
 	cmp status, PAUSING
-	je pausingpaint
+	je generalpaint
 	cmp status, ENDING
-	je endingpaint
+	je generalpaint
 	cmp status, AUDIO
-	je audiopaint
+	je generalpaint
 	cmp status, GRAPHICS
-	je graphicspaint
+	je generalpaint
+	cmp status, COLOR
+	je generalpaint
+	cmp status, CHOOSE1
+	je generalpaint
+	cmp status, CHOOSE2
+	je generalpaint
 	jmp closing
 
-pausingpaint:
-	invoke BeginPaint, myhWnd, addr paint
-	mov hdc, eax
-	invoke CreateCompatibleDC, hdc
-	mov mem_hdc, eax
-	invoke CreateCompatibleBitmap, hdc, RealWidth, RealHUDHeight
-	mov mem_hbm, eax
-	invoke SelectObject, mem_hdc, mem_hbm
-	mov OldHandle, eax
-	invoke DrawBG, status, rect, mem_hdc, myhWnd
-	invoke BitBlt, hdc, 0, 0, RealWidth, RealHUDHeight, mem_hdc, 0, 0, SRCCOPY
-	invoke SelectObject, mem_hdc, OldHandle
-	invoke DeleteObject, mem_hbm
-	invoke DeleteDC, mem_hdc
-	invoke EndPaint, myhWnd, addr paint
-	ret
-
-graphicspaint:
-	invoke BeginPaint, myhWnd, addr paint
-	mov hdc, eax
-	invoke CreateCompatibleDC, hdc
-	mov mem_hdc, eax
-	invoke CreateCompatibleBitmap, hdc, RealWidth, RealHUDHeight
-	mov mem_hbm, eax
-	invoke SelectObject, mem_hdc, mem_hbm
-	mov OldHandle, eax
-	invoke DrawBG, status, rect, mem_hdc, myhWnd
-	invoke BitBlt, hdc, 0, 0, RealWidth, RealHUDHeight, mem_hdc, 0, 0, SRCCOPY
-	invoke SelectObject, mem_hdc, OldHandle
-	invoke DeleteObject, mem_hbm
-	invoke DeleteDC, mem_hdc
-	invoke EndPaint, myhWnd, addr paint
-	ret
-
-endingpaint:
-	invoke BeginPaint, myhWnd, addr paint
-	mov hdc, eax
-	invoke CreateCompatibleDC, hdc
-	mov mem_hdc, eax
-	invoke CreateCompatibleBitmap, hdc, RealWidth, RealHUDHeight
-	mov mem_hbm, eax
-	invoke SelectObject, mem_hdc, mem_hbm
-	mov OldHandle, eax
-	invoke DrawBG, status, rect, mem_hdc, myhWnd
-	invoke BitBlt, hdc, 0, 0, RealWidth, RealHUDHeight, mem_hdc, 0, 0, SRCCOPY
-	invoke SelectObject, mem_hdc, OldHandle
-	invoke DeleteObject, mem_hbm
-	invoke DeleteDC, mem_hdc
-	invoke EndPaint, myhWnd, addr paint
-	ret
-
-mainmenupaint:
-	invoke BeginPaint, myhWnd, addr paint
-	mov hdc, eax
-	invoke CreateCompatibleDC, hdc
-	mov mem_hdc, eax
-	invoke CreateCompatibleBitmap, hdc, RealWidth, RealHUDHeight
-	mov mem_hbm, eax
-	invoke SelectObject, mem_hdc, mem_hbm
-	mov OldHandle, eax
-	invoke DrawBG, status, rect, mem_hdc, myhWnd
-	invoke BitBlt, hdc, 0, 0, RealWidth, RealHUDHeight, mem_hdc, 0, 0, SRCCOPY
-	invoke SelectObject, mem_hdc, OldHandle
-	invoke DeleteObject, mem_hbm
-	invoke DeleteDC, mem_hdc
-	invoke EndPaint, myhWnd, addr paint
-	ret
-
-settingspaint:
-	invoke BeginPaint, myhWnd, addr paint
-	mov hdc, eax
-	invoke CreateCompatibleDC, hdc
-	mov mem_hdc, eax
-	invoke CreateCompatibleBitmap, hdc, RealWidth, RealHUDHeight
-	mov mem_hbm, eax
-	invoke SelectObject, mem_hdc, mem_hbm
-	mov OldHandle, eax
-	invoke DrawBG, status, rect, mem_hdc, myhWnd
-	invoke BitBlt, hdc, 0, 0, RealWidth, RealHUDHeight, mem_hdc, 0, 0, SRCCOPY
-	invoke SelectObject, mem_hdc, OldHandle
-	invoke DeleteObject, mem_hbm
-	invoke DeleteDC, mem_hdc
-	invoke EndPaint, myhWnd, addr paint
-	ret
-
-audiopaint:
-	invoke BeginPaint, myhWnd, addr paint
-	mov hdc, eax
-	invoke CreateCompatibleDC, hdc
-	mov mem_hdc, eax
-	invoke CreateCompatibleBitmap, hdc, RealWidth, RealHUDHeight
-	mov mem_hbm, eax
-	invoke SelectObject, mem_hdc, mem_hbm
-	mov OldHandle, eax
-	invoke DrawBG, status, rect, mem_hdc, myhWnd
-	invoke BitBlt, hdc, 0, 0, RealWidth, RealHUDHeight, mem_hdc, 0, 0, SRCCOPY
-	invoke SelectObject, mem_hdc, OldHandle
-	invoke DeleteObject, mem_hbm
-	invoke DeleteDC, mem_hdc
-	invoke EndPaint, myhWnd, addr paint
-	ret
-
-gamepaint:
+generalpaint:
 	invoke BeginPaint, myhWnd, addr paint
 	mov hdc, eax
 	invoke CreateCompatibleDC, hdc
@@ -5048,6 +5350,10 @@ invoke LoadBitmap, eax, COLOR
 mov ColorBMH, eax
 
 invoke GetModuleHandle, NULL
+invoke LoadBitmap, eax, WHEEL
+mov WheelBMH, eax
+
+invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, BIT
 mov BITBMH, eax
 invoke Get_Handle_To_Mask_Bitmap, BITBMH, 0ffffffh	;white
@@ -5092,6 +5398,12 @@ invoke LoadBitmap, eax, BACKBUTTON
 mov BackButtonBMH, eax
 invoke Get_Handle_To_Mask_Bitmap, BackButtonBMH, 0ffffffh	;white
 mov BackButtonMaskBMH, eax
+
+invoke GetModuleHandle, NULL
+invoke LoadBitmap, eax, CONFIRMBUTTON
+mov ConfirmButtonBMH, eax
+invoke Get_Handle_To_Mask_Bitmap, ConfirmButtonBMH, 0ffffffh	;white
+mov ConfirmButtonMaskBMH, eax
 
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, SETTINGSBUTTON
