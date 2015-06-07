@@ -417,8 +417,8 @@ laststeps DB TILES*3 dup (-1)
 emptybuff DB TILES*3 dup (-1)
 sin sockaddr_in <>
 clientsin sockaddr_in <>
-IPAddress db "149.78.95.151",0 
-Port dd 5006
+IPAddress db "79.177.129.169",0 
+Port dd 30002
 text db "placeholder",0
 textoffset DWORD ?
 connectmsg db "connect",0
@@ -483,10 +483,10 @@ sendLocation PROC, uselessparameter:DWORD
 ;----------------------------------------------------------------------------
 again:
 	invoke Sleep,10
-	invoke RtlMoveMemory, offset infobuffer, offset laststeps, 1024
-	invoke sendto, sock, offset infobuffer, 1024, 0, offset clientsin, sizeof clientsin
-	;invoke RtlMoveMemory, offset laststeps, offset emptybuff, 1024
-	;invoke RtlMoveMemory, offset infobuffer, offset emptybuff, 1024
+	invoke RtlMoveMemory, offset infobuffer, offset laststeps, sizeof laststeps
+	invoke sendto, sock, offset infobuffer, sizeof infobuffer, 0, offset clientsin, sizeof clientsin
+	;invoke RtlMoveMemory, offset laststeps, offset emptybuff, sizeoff emptybuff
+	;invoke RtlMoveMemory, offset infobuffer, offset emptybuff, sizeof emptybuff
 	;xor eax, eax
 	;mov index, al
 	jmp again
@@ -1127,7 +1127,8 @@ localnocount:
 	ret
 
 onlinedraw:
-	.if connected_to_peer == FALSE
+	cmp connected_to_peer, TRUE
+	je connecteddraw
 	mov eax, Frame
 	dec eax
 	imul eax, 1000
@@ -1153,7 +1154,7 @@ onlinewaitinggifloop:
 	mov eax, 1
 	mov Frame, eax
 	ret
-	.endif
+connecteddraw:
 	invoke DrawImage, hdc, CurrentBMH, 0, 0, 0, 0, WinWidth, WinHeight, 1000, 750
 	;invoke DrawImage_WithMask, hdc, SmallHighlightBMH, SmallHighlightMaskBMH, W12Sixteenth, WinHeight, 0, 0, W4Sixteenth, H1Tenth, 913, 346
 	invoke DrawImage_WithMask, hdc, YouButtonBMH, YouButtonMaskBMH, W12Sixteenth, WinHeight, 0, 0, W4Sixteenth, H1Tenth, 913, 346
@@ -1930,9 +1931,9 @@ clear:
 	mov BoostTime1, eax
 	mov BoostTime2, eax
 	mov MyBoostTime, eax
-	invoke RtlMoveMemory, offset buffer_for_sock, offset emptybuff, 1024
-	invoke RtlMoveMemory, offset laststeps, offset emptybuff, 1024
-	invoke RtlMoveMemory, offset infobuffer, offset emptybuff, 1024
+	invoke RtlMoveMemory, offset buffer_for_sock, offset emptybuff, sizeof emptybuff
+	invoke RtlMoveMemory, offset laststeps, offset emptybuff, sizeof emptybuff
+	invoke RtlMoveMemory, offset infobuffer, offset emptybuff, sizeof emptybuff
 	ret
 ;============================================================================
 Restart ENDP
@@ -2170,8 +2171,8 @@ connecting:
 		.if ax==NULL 
 			invoke ioctlsocket, sock, FIONREAD, addr available_data
 			.if eax==NULL
-				;invoke RtlMoveMemory, offset buffer_for_sock, offset emptybuff, 1024
-				invoke recvfrom, sock, offset buffer_for_sock, 1024, 0, NULL, NULL
+				;invoke RtlMoveMemory, offset buffer_for_sock, offset emptybuff, sizeof emptybuff
+				invoke recvfrom, sock, offset buffer_for_sock, sizeof buffer_for_sock, 0, NULL, NULL
 
 				.if connected_to_peer == TRUE
 					mov ebx, offset buffer_for_sock
@@ -2246,7 +2247,7 @@ connecting:
 			mov BYTE ptr [ebx], al
 			cmp SFX, 0
 			je onlinenosfx
-			invoke mciSendString, offset playCountdown, NULL, NULL, NULL
+			;invoke mciSendString, offset playCountdown, NULL, NULL, NULL
 		onlinenosfx:
 			invoke GetTickCount
 			mov CountTime, eax
@@ -2333,9 +2334,9 @@ localnosfx:
 	ret
 
 onlinegame:
-	invoke StopSFX
-	invoke StopMusic
-	invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
+	;invoke StopSFX
+	;invoke StopMusic
+	;invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
 	mov eax, 1
 	mov Selected, eax
 	;mov eax, status
@@ -2373,7 +2374,7 @@ onlinegame:
 	invoke inet_addr, addr IPAddress	; convert the IP address into network byte order 
 	mov sin.sin_addr,eax 
 	invoke crt_strlen, offset connectmsg
-	invoke sendto,sock, offset connectmsg, eax, 0, offset sin, sizeof sin
+	invoke sendto, sock, offset connectmsg, eax, 0, offset sin, sizeof sin
 	invoke WSAGetLastError
 	ret
 
@@ -4505,7 +4506,8 @@ localtiednomusic:
 	ret
 
 onlinegamepaint:
-	.if connected_to_peer == FALSE
+	cmp connected_to_peer, TRUE
+	je connectedpaint
 	invoke BeginPaint, myhWnd, addr paint
 	mov hdc, eax
 	invoke CreateCompatibleDC, hdc
@@ -4521,7 +4523,7 @@ onlinegamepaint:
 	invoke DeleteDC, mem_hdc
 	invoke EndPaint, myhWnd, addr paint
 	ret
-	.endif
+connectedpaint:
 	cmp CountDown, 0	;-1
 	je nextonlinepaint
 	invoke BeginPaint, myhWnd, addr paint
