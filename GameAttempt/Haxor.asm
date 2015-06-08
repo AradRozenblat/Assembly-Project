@@ -419,8 +419,8 @@ laststeps DB TILES*3 dup (-1)
 emptybuff DB TILES*3 dup (-1)
 sin sockaddr_in <>
 clientsin sockaddr_in <>
-IPAddress db "149.78.95.151",0 
-Port dd 5006
+IPAddress db "212.179.222.94",0 
+Port dd 30001
 text db "placeholder",0
 textoffset DWORD ?
 connectmsg db "connect",0
