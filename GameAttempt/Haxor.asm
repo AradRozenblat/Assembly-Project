@@ -112,6 +112,7 @@ VSBUTTON equ 73
 VSHIGHLIGHT equ 74
 BIT equ 75
 CONFIRMBUTTON equ 76
+BANNER equ 77
 
 REG1 equ 1
 DARK1 equ 3
@@ -179,6 +180,7 @@ grid DB 100*75 dup(0)
 SettingsBMH HBITMAP ?
 MainMenuBMH HBITMAP ?
 PausingBMH HBITMAP ?
+BannerBMH HBITMAP ?
 EndingBMH HBITMAP ?
 ColorBMH HBITMAP ?
 WheelBMH HBITMAP ?
@@ -417,8 +419,8 @@ laststeps DB TILES*3 dup (-1)
 emptybuff DB TILES*3 dup (-1)
 sin sockaddr_in <>
 clientsin sockaddr_in <>
-IPAddress db "79.177.129.169",0 
-Port dd 30002
+IPAddress db "149.78.95.151",0 
+Port dd 5006
 text db "placeholder",0
 textoffset DWORD ?
 connectmsg db "connect",0
@@ -918,6 +920,7 @@ DrawBG PROC, mystatus:DWORD, myrect:RECT, hdc:HDC, myhWnd:HWND
 
 choose1draw:
 	invoke DrawImage, hdc, WheelBMH, 0, 0, 0, 0, WinWidth, WinHeight, 800, 600
+	invoke DrawImage, hdc, BannerBMH, 0, WinHeight, 0, 0, WinWidth, H2Tenth, 800, 120
 	cmp Selected, 1
 	je choose1confirmselect
 	cmp Selected, 2
@@ -943,6 +946,7 @@ nextchoose1:
 
 choose2draw:
 	invoke DrawImage, hdc, WheelBMH, 0, 0, 0, 0, WinWidth, WinHeight, 800, 600
+	invoke DrawImage, hdc, BannerBMH, 0, WinHeight, 0, 0, WinWidth, H2Tenth, 800, 120
 	cmp Selected, 1
 	je choose2confirmselect
 	cmp Selected, 2
@@ -971,6 +975,7 @@ gamedraw:
 	dec eax
 	imul eax, 1000
 	invoke DrawImage, hdc, GameBMH, 0, 0, eax, 0, WinWidth, WinHeight, 1000, 750
+	invoke DrawImage, hdc, BannerBMH, 0, WinHeight, 0, 0, WinWidth, H2Tenth, 800, 120
 	cmp Selected, 1
 	je gamelocalselect
 	cmp Selected, 2
@@ -1164,6 +1169,8 @@ connecteddraw:
 	invoke DrawImage_WithMask, hdc, EnemyButtonBMH, EnemyButtonMaskBMH, 0, WinHeight, 0, 0, W4Sixteenth, H1Tenth, 913, 346
 	;invoke DrawImage_WithMask, hdc, VSHighlightBMH, VSHighlightMaskBMH, W7Sixteenth, WinHeight, 0, 0, W2Sixteenth, H2Tenth, 463, 679
 	invoke DrawImage_WithMask, hdc, VSButtonBMH, VSButtonMaskBMH, W7Sixteenth, WinHeight, 0, 0, W2Sixteenth, H2Tenth, 463, 679
+	invoke crt_strlen, offset textoffset
+	invoke TextOut, hdc, W4Sixteenth, WinHeight, textoffset, eax
 
 	cmp Me.boosts, 0
 	je onlinegif
@@ -1332,6 +1339,7 @@ mainmenudraw:	;new game, settings, help, credits, exit
 	dec eax
 	imul eax, 1000
 	invoke DrawImage, hdc, MainMenuBMH, 0, 0, eax, 0, WinWidth, WinHeight, 1000, 750
+	invoke DrawImage, hdc, BannerBMH, 0, WinHeight, 0, 0, WinWidth, H2Tenth, 800, 120
 	cmp Selected, 1
 	je mainmenunewgameselect
 	cmp Selected, 2
@@ -1391,6 +1399,7 @@ settingsdraw:	;audio, graphics, back
 	dec eax
 	imul eax, 1000
 	invoke DrawImage, hdc, SettingsBMH, 0, 0, eax, 0, WinWidth, WinHeight, 1000, 750
+	invoke DrawImage, hdc, BannerBMH, 0, WinHeight, 0, 0, WinWidth, H2Tenth, 800, 120
 
 	cmp Selected, 1
 	je settingsaudioselect
@@ -1441,6 +1450,8 @@ pausingdraw:	;resume, new game, settings, help, mainmenu
 	dec eax
 	imul eax, 1000
 	invoke DrawImage, hdc, PausingBMH, 0, 0, eax, 0, WinWidth, WinHeight, 1000, 750
+	invoke DrawImage, hdc, BannerBMH, 0, WinHeight, 0, 0, WinWidth, H2Tenth, 800, 120
+
 	cmp Selected, 1
 	je pausingresumeselected
 	cmp Selected, 2
@@ -1504,6 +1515,7 @@ endingdraw:	;new game, credits, mainmenu, exit
 	dec eax
 	imul eax, 1000
 	invoke DrawImage, hdc, EndingBMH, 0, 0, eax, 0, WinWidth, WinHeight, 1000, 750
+	invoke DrawImage, hdc, BannerBMH, 0, WinHeight, 0, 0, WinWidth, H2Tenth, 800, 120
 
 	cmp Selected, 1
 	je endingnewgameselected
@@ -1587,6 +1599,7 @@ colordraw:	;p1, p2, back
 	dec eax
 	imul eax, 600
 	invoke DrawImage, hdc, ColorBMH, W2Sixteenth, 0, eax, 0, W12Sixteenth, WinHeight, 600, 600
+	invoke DrawImage, hdc, BannerBMH, 0, WinHeight, 0, 0, WinWidth, H2Tenth, 800, 120
 	cmp Selected, 1
 	je colorP1selected
 	cmp Selected, 2
@@ -1645,6 +1658,7 @@ audiodraw:	;volume, music, sfx, mute, track, back
 	dec eax
 	imul eax, 1000
 	invoke DrawImage, hdc, AudioBMH, 0, 0, eax, 0, WinWidth, WinHeight, 1000, 750
+	invoke DrawImage, hdc, BannerBMH, 0, WinHeight, 0, 0, WinWidth, H2Tenth, 800, 120
 	cmp Selected, 1
 	je audiovolumeselected
 	cmp Selected, 2
@@ -1753,6 +1767,7 @@ graphicsdraw:	;color, image, resize, back
 	dec eax
 	imul eax, 1000
 	invoke DrawImage, hdc, GraphicsBMH, 0, 0, eax, 0, WinWidth, WinHeight, 1000, 750
+	invoke DrawImage, hdc, BannerBMH, 0, WinHeight, 0, 0, WinWidth, H2Tenth, 800, 120
 	cmp Selected, 1
 	je graphicscolorselected
 	cmp Selected, 2
@@ -2346,7 +2361,6 @@ onlinegame:
 	mov laststatus, eax
 	invoke Restart
 	;invoke ResizeWindow, WinWidth, HUDHeight
-	mov textoffset, offset text
 	invoke WSAStartup, 101h,addr wsadata 
 	.if eax!=NULL 
 	invoke ExitProcess, 1;<An error occured> 
@@ -5322,6 +5336,10 @@ mov EndingBMH, eax
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, PAUSING
 mov PausingBMH, eax
+
+invoke GetModuleHandle, NULL
+invoke LoadBitmap, eax, BANNER
+mov BannerBMH, eax
 
 invoke GetModuleHandle, NULL
 invoke LoadBitmap, eax, GAME

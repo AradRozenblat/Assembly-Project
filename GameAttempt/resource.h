@@ -66,3 +66,4 @@
 #define IDB_VSHIGHLIGHT 74
 #define IDB_BIT 75
 #define IDB_CONFIRMBUTTON 76
+#define IDB_BANNER 77
