@@ -426,6 +426,8 @@ textoffset DWORD ?
 connectmsg db "connect",0
 pleaseconfirmmsg db "Please confirm",0
 confirmmsg db "confirm",0
+Ilosemsg db "I lose",0
+Iquitmsg db "I quit",0
 prepareforiptransfermsg db "Prepare for IP transfer",0
 expecting_IP db FALSE
 expecting_PORT db FALSE
@@ -2190,6 +2192,9 @@ connecting:
 				invoke recvfrom, sock, offset buffer_for_sock, sizeof buffer_for_sock, 0, NULL, NULL
 
 				.if connected_to_peer == TRUE
+					invoke crt_strcmp, offset buffer_for_sock, offset Ilosemsg
+					cmp eax, 0
+					je onlinewin
 					mov ebx, offset buffer_for_sock
 					mov ecx, TILES
 				update:
@@ -2579,6 +2584,11 @@ choose2:
 	mov eax, Color2
 	mov TempColor, eax
 	ret
+
+onlinequit:
+	invoke crt_strlen, offset Iquitmsg
+	invoke sendto, sock, offset Iquitmsg, eax, 0, offset sin, sizeof sin
+	jmp newgame
 
 confirm1:
 	mov eax, TempColor
@@ -3053,6 +3063,8 @@ statusclick:
 	mov MouseY, eax
 	cmp status, GAME
 	je gameclick
+	cmp status, ONLINEGAME
+	je onlineclick
 	cmp status, MAINMENU
 	je mainmenuclick
 	cmp status, SETTINGS
@@ -3123,6 +3135,15 @@ gameclick:	;local, online, back
 	invoke CheckMouse, MouseX, MouseY, W4Sixteenth, H4Tenth, W8Sixteenth, H1Tenth
 	cmp eax, 1
 	je backing
+	ret
+
+onlineclick:
+	.if connected_to_peer==FALSE
+		invoke CheckMouse, MouseX, MouseY, W4Sixteenth, H1Tenth, W8Sixteenth, H1Tenth
+		cmp eax, 1
+		je onlinequit
+		ret
+	.endif
 	ret
 
 mainmenuclick:	;new game, settings, help, credits, exit
@@ -3718,7 +3739,7 @@ onlineselect:
 	.if connected_to_peer==TRUE
 		ret
 	.endif
-	jmp newgame
+	jmp onlinequit
 onlineboost:
 	mov eax, Speed
 	cmp Me.speed, eax
@@ -4677,6 +4698,8 @@ onlinedead:
 	mov status, eax
 	mov eax, LOSE
 	mov Winner, eax
+	invoke crt_strlen, offset Ilosemsg
+	invoke sendto, sock, offset Ilosemsg, eax, 0, offset clientsin, sizeof clientsin
 	;invoke ResizeWindow, WinWidth, WinHeight
 	invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
 	cmp SFX, 0
@@ -4688,6 +4711,26 @@ onlinedeadnosfx:
 	invoke PlayMusic
 onlinedeadnomusic:
 	ret
+
+onlinewin:
+	mov eax, status
+	mov laststatus, eax
+	mov eax, ENDING
+	mov status, eax
+	mov eax, WIN
+	mov Winner, eax
+	;invoke ResizeWindow, WinWidth, WinHeight
+	invoke mciSendString, offset stopDerezzed, NULL, NULL, NULL
+	cmp SFX, 0
+	je onlinewinnosfx
+	invoke mciSendString, offset playApplause, NULL, NULL, NULL
+onlinewinnosfx:
+	cmp Music, 0
+	je onlinewinnomusic
+	invoke PlayMusic
+onlinewinnomusic:
+	ret
+	
 
 onlinenotdead:
 	popa
