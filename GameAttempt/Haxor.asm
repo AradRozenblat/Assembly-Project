@@ -920,6 +920,13 @@ DrawBG PROC, mystatus:DWORD, myrect:RECT, hdc:HDC, myhWnd:HWND
 	je choose2draw
 	invoke ExitProcess, 0
 
+helpingdraw:
+	invoke DrawImage, hdc, HelpingBMH, 0, 0, 0, 0, WinWidth, WinHeight, 800, 600
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W7Sixteenth, H8Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, BackButtonBMH, BackButtonMaskBMH, W7Sixteenth, H8Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
+	invoke DrawImage, hdc, BannerBMH, 0, WinHeight, 0, 0, WinWidth, H2Tenth, 800, 120
+	ret
+
 choose1draw:
 	invoke DrawImage, hdc, WheelBMH, 0, 0, 0, 0, WinWidth, WinHeight, 800, 600
 	invoke DrawImage, hdc, BannerBMH, 0, WinHeight, 0, 0, WinWidth, H2Tenth, 800, 120
@@ -1649,10 +1656,11 @@ colorgifloop:
 exitingdraw:
 	ret
 
-helpingdraw:
-	ret
-
 creditsdraw:
+	invoke DrawImage, hdc, CreditsBMH, 0, 0, 0, 0, WinWidth, WinHeight, 800, 600
+	invoke DrawImage_WithMask, hdc, BigHighlightBMH, BigHighlightMaskBMH, W4Sixteenth, H8Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
+	invoke DrawImage_WithMask, hdc, BackButtonBMH, BackButtonMaskBMH, W4Sixteenth, H8Tenth, 0, 0, W8Sixteenth, H1Tenth, 1813, 346
+	invoke DrawImage, hdc, BannerBMH, 0, WinHeight, 0, 0, WinWidth, H2Tenth, 800, 120
 	ret
 
 audiodraw:	;volume, music, sfx, mute, track, back
@@ -3083,6 +3091,38 @@ statusclick:
 	je choose1click
 	cmp status, CHOOSE2
 	je choose2click
+	cmp status, HELPING
+	je helpingclick
+	cmp status, CREDITS
+	je creditsclick
+	ret
+
+helpingclick:
+	invoke CheckMouse, MouseX, MouseY, W7Sixteenth, H8Tenth, W8Sixteenth, H1Tenth
+	cmp eax, 1
+	je helpingbackclick
+	ret
+helpingbackclick:
+	cmp laststatus, MAINMENU
+	je mainmenu
+	cmp laststatus, LOCALGAME
+	je pausing
+	cmp laststatus, SINGLEGAME
+	je pausing
+	ret
+
+creditsclick:
+	invoke CheckMouse, MouseX, MouseY, W4Sixteenth, H8Tenth, W8Sixteenth, H1Tenth
+	cmp eax, 1
+	je creditsbackclick
+	ret
+creditsbackclick:
+	cmp laststatus, MAINMENU
+	je mainmenu
+	cmp laststatus, LOCALGAME
+	je ending
+	cmp laststatus, SINGLEGAME
+	je ending
 	ret
 
 choose1click:	;confirm, back
@@ -3290,6 +3330,10 @@ statuskey:
 	je choose1movement
 	cmp status, CHOOSE2
 	je choose2movement
+	cmp status, HELPING
+	je helpingmovement
+	cmp status, CREDITS
+	je creditsmovement
 	ret
 
 choose1movement:
@@ -3606,6 +3650,38 @@ audioselecttop:
 audioselectbot:
 	mov eax, 6
 	mov Selected, eax
+	ret
+
+helpingmovement:
+	cmp wParam, VK_RETURN
+	je helpingselect
+	cmp wParam, VK_ESCAPE
+	je closing
+	ret
+helpingselect:
+	cmp laststatus, MAINMENU
+	je mainmenu
+	cmp laststatus, LOCALGAME
+	je pausing
+	cmp laststatus, SINGLEGAME
+	je pausing
+	ret
+
+creditsmovement:
+	cmp wParam, VK_RETURN
+	je creditsselect
+	cmp wParam, VK_ESCAPE
+	je closing
+	ret
+creditsselect:
+	cmp laststatus, MAINMENU
+	je mainmenu
+	cmp laststatus, LOCALGAME
+	je ending
+	cmp laststatus, SINGLEGAME
+	je ending
+	cmp laststatus, ONLINEGAME
+	je ending
 	ret
 
 graphicsmovement:
@@ -4201,6 +4277,10 @@ statuspainting:
 	cmp status, CHOOSE1
 	je generalpaint
 	cmp status, CHOOSE2
+	je generalpaint
+	cmp status, HELPING
+	je generalpaint
+	cmp status, CREDITS
 	je generalpaint
 	jmp closing
 
